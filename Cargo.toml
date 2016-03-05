@@ -1,0 +1,6 @@
+[package]
+name = "graphql-rs"
+version = "0.1.0"
+authors = ["cscks"]
+
+[dependencies]
