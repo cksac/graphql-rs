@@ -107,10 +107,12 @@ impl GraphQLEnumValue {
   }
 
   pub fn mark_depreciated(mut self, depreciation_reason: &str) -> GraphQLEnumValue {
-    if depreciation_reason.trim().len() == 0 {
-      panic!("Deprecation reason for {:?} can't not be empty", self.value);
+    let reason = depreciation_reason.trim().to_owned();
+    if reason.len() == 0 {
+      panic!("Deprecation reason for enum value {:?} cannot be empty",
+             self.value);
     }
-    self.depreciation_reason = Some(depreciation_reason.to_owned());
+    self.depreciation_reason = Some(reason);
     self
   }
 }
