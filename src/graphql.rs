@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::str::FromStr;
+use std::any::Any;
 
 macro_rules! blanket_impl {
   ($trait_: ident for $($type_: ty),*) => {
@@ -35,14 +37,23 @@ pub trait GraphQLType {
 }
 impl_graphql_type_for! { GraphQLEnum }
 
-pub trait GraphQLScalar: GraphQLType {}
-blanket_impl! { GraphQLScalar for GraphQLInt, GraphQLFloat, GraphQLString, GraphQLBoolean }
+pub trait GraphQLScalar: GraphQLType {
+    type ValueType: Any;
+  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType>;
+}
 
 pub struct GraphQLInt;
 impl_graphql_type_for! {
     GraphQLInt where
     name = "Int",
     description = "The Int scalar type represents a signed 32‐bit numeric non‐fractional values."
+}
+
+impl GraphQLScalar for GraphQLInt {
+  type ValueType = i32;
+  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
+    i32::from_str(value).ok()
+  }
 }
 
 pub struct GraphQLFloat;
@@ -52,6 +63,13 @@ impl_graphql_type_for! {
     description = "The Float scalar type represents signed double-precision fractional values as specified by IEEE 754."
 }
 
+impl GraphQLScalar for GraphQLFloat {
+  type ValueType = f64;
+  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
+    f64::from_str(value).ok()
+  }
+}
+
 pub struct GraphQLString;
 impl_graphql_type_for! {
     GraphQLString where
@@ -59,11 +77,25 @@ impl_graphql_type_for! {
     description = "The String scalar type represents textual data, represented as UTF-8 character sequences."
 }
 
+impl GraphQLScalar for GraphQLString {
+  type ValueType = String;
+  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
+    String::from_str(value).ok()
+  }
+}
+
 pub struct GraphQLBoolean;
 impl_graphql_type_for! {
     GraphQLBoolean where
     name = "Boolean",
     description = "The Boolean scalar type represents true or false."
+}
+
+impl GraphQLScalar for GraphQLBoolean {
+  type ValueType = bool;
+  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
+    bool::from_str(value).ok()
+  }
 }
 
 pub struct GraphQLEnum {
@@ -169,10 +201,32 @@ mod tests {
 
   #[test]
   fn test_scalar_type() {
-    assert_eq!("Int", GraphQLInt.name());
-    assert_eq!("Float", GraphQLFloat.name());
-    assert_eq!("String", GraphQLString.name());
-    assert_eq!("Boolean", GraphQLBoolean.name());
+    let int_t = GraphQLInt;
+    assert_eq!("Int", int_t.name());
+    assert_eq!(Some(10), int_t.coerce_literal("10"));
+    assert_eq!(None, int_t.coerce_literal("a"));
+
+    let float_t = GraphQLFloat;
+    assert_eq!("Float", float_t.name());
+    assert_eq!(Some(2.0), float_t.coerce_literal("2.0"));
+    assert_eq!(Some(2.0), float_t.coerce_literal("2"));
+    assert_eq!(None, float_t.coerce_literal("2.0a"));
+
+    let string_t = GraphQLString;
+    assert_eq!("String", string_t.name());
+    assert_eq!(Some(String::from("abc")), string_t.coerce_literal("abc"));
+    assert_eq!(Some(String::from("2.0")), string_t.coerce_literal("2.0"));
+
+    let boolean_t = GraphQLBoolean;
+    assert_eq!("Boolean", boolean_t.name());
+    assert_eq!(Some(true), boolean_t.coerce_literal("true"));
+    assert_eq!(Some(false), boolean_t.coerce_literal("false"));
+    assert_eq!(None, boolean_t.coerce_literal("1"));
+    assert_eq!(None, boolean_t.coerce_literal("0"));
+    assert_eq!(None, boolean_t.coerce_literal("True"));
+    assert_eq!(None, boolean_t.coerce_literal("False"));
+    assert_eq!(None, boolean_t.coerce_literal("TRUE"));
+    assert_eq!(None, boolean_t.coerce_literal("FALSE"));
   }
 
   #[test]
