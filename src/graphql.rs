@@ -38,7 +38,7 @@ pub trait GraphQLType {
 impl_graphql_type_for! { GraphQLEnum }
 
 pub trait GraphQLScalar: GraphQLType {
-    type ValueType: Any;
+  type ValueType: Any;
   fn coerce_literal(&self, value: &str) -> Option<Self::ValueType>;
 }
 
@@ -204,7 +204,10 @@ mod tests {
     let int_t = GraphQLInt;
     assert_eq!("Int", int_t.name());
     assert_eq!(Some(10), int_t.coerce_literal("10"));
+    assert_eq!(None, int_t.coerce_literal("10.1"));
     assert_eq!(None, int_t.coerce_literal("a"));
+    assert_eq!(None, int_t.coerce_literal(&i64::max_value().to_string()));
+    assert_eq!(None, int_t.coerce_literal(&i64::min_value().to_string()));
 
     let float_t = GraphQLFloat;
     assert_eq!("Float", float_t.name());
