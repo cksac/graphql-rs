@@ -1,2 +1,2 @@
 # graphql-rs
-A implementation of GraphQL for Rust
+A WIP implementation of GraphQL for Rust
