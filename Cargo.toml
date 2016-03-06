@@ -2,5 +2,12 @@
 name = "graphql-rs"
 version = "0.1.0"
 authors = ["cscks"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/cksac/graphql-rs"
+homepage = "https://github.com/cksac/graphql-rs"
+description = """
+A implementation of GraphQL for Rust
+"""
 
 [dependencies]
