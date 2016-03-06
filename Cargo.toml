@@ -9,5 +9,6 @@ homepage = "https://github.com/cksac/graphql-rs"
 description = """
 A implementation of GraphQL for Rust
 """
+keywords = ["graphql"]
 
 [dependencies]
