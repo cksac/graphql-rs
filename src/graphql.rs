@@ -31,6 +31,19 @@ macro_rules! impl_graphql_type_for {
     };    
 }
 
+macro_rules! impl_scalar_type_for {
+    ($tt: ty as $value_type: ident where name = $name: expr, description = $desc: expr) => {
+      impl_graphql_type_for! { $tt where name = $name, description = $desc }
+
+      impl GraphQLScalar for $tt {
+        type ValueType = $value_type;
+        fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
+          $value_type::from_str(value).ok()
+        }
+      }
+    };
+}
+
 pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
@@ -43,59 +56,27 @@ pub trait GraphQLScalar: GraphQLType {
 }
 
 pub struct GraphQLInt;
-impl_graphql_type_for! {
-    GraphQLInt where
-    name = "Int",
-    description = "The Int scalar type represents a signed 32‐bit numeric non‐fractional values."
-}
-
-impl GraphQLScalar for GraphQLInt {
-  type ValueType = i32;
-  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
-    i32::from_str(value).ok()
-  }
+impl_scalar_type_for! { GraphQLInt as i32 where
+  name = "Int",
+  description = "The Int scalar type represents a signed 32‐bit numeric non‐fractional values."
 }
 
 pub struct GraphQLFloat;
-impl_graphql_type_for! {
-    GraphQLFloat where
-    name = "Float",
-    description = "The Float scalar type represents signed double-precision fractional values as specified by IEEE 754."
-}
-
-impl GraphQLScalar for GraphQLFloat {
-  type ValueType = f64;
-  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
-    f64::from_str(value).ok()
-  }
+impl_scalar_type_for! { GraphQLFloat as f64 where
+  name = "Float",
+  description = "The Float scalar type represents signed double-precision fractional values as specified by IEEE 754."
 }
 
 pub struct GraphQLString;
-impl_graphql_type_for! {
-    GraphQLString where
-    name = "String",
-    description = "The String scalar type represents textual data, represented as UTF-8 character sequences."
-}
-
-impl GraphQLScalar for GraphQLString {
-  type ValueType = String;
-  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
-    String::from_str(value).ok()
-  }
+impl_scalar_type_for! { GraphQLString as String where
+  name = "String",
+  description = "The String scalar type represents textual data, represented as UTF-8 character sequences."
 }
 
 pub struct GraphQLBoolean;
-impl_graphql_type_for! {
-    GraphQLBoolean where
-    name = "Boolean",
-    description = "The Boolean scalar type represents true or false."
-}
-
-impl GraphQLScalar for GraphQLBoolean {
-  type ValueType = bool;
-  fn coerce_literal(&self, value: &str) -> Option<Self::ValueType> {
-    bool::from_str(value).ok()
-  }
+impl_scalar_type_for! { GraphQLBoolean as bool where
+  name = "Boolean",
+  description = "The Boolean scalar type represents true or false."
 }
 
 pub struct GraphQLEnum {
