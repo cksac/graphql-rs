@@ -50,7 +50,7 @@ pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
 }
-impl_graphql_type_for! { GraphQLEnum, GraphQLObject }
+impl_graphql_type_for! { GraphQLEnum, GraphQLObject, GraphQLUnion }
 
 pub trait GraphQLScalar: GraphQLType {
   type ValueType: Any;
@@ -157,6 +157,11 @@ pub struct GraphQLArgument {
   typ: Rc<GraphQLInput>,
 }
 
+pub struct GraphQLUnion {
+  name: String,
+  description: Option<String>,
+  types: HashMap<String, Rc<GraphQLObject>>,
+}
 
 // Builders
 struct Placeholder {
@@ -407,6 +412,45 @@ impl GraphQLEnumValueBuilder {
   }
 }
 
+pub struct GraphQLUnionBuilder {
+  name: String,
+  description: Option<String>,
+  types: HashMap<String, Rc<GraphQLObject>>,
+}
+
+impl GraphQLUnionBuilder {
+  fn new(name: &str) -> GraphQLUnionBuilder {
+    GraphQLUnionBuilder {
+      name: name.to_owned(),
+      description: None,
+      types: HashMap::new(),
+    }
+  }
+
+  pub fn with_description(mut self, description: &str) -> GraphQLUnionBuilder {
+    self.description = Some(description.to_owned());
+    self
+  }
+
+  pub fn maybe_type_of(mut self, typ: &Rc<GraphQLObject>) -> GraphQLUnionBuilder {
+    self.types.insert(typ.name().to_owned(), typ.clone());
+    self
+  }
+
+  pub fn build(self) -> Rc<GraphQLUnion> {
+    if self.types.len() == 0 {
+      panic!("Union {:} must has at least one possible type defined.",
+             self.name);
+    }
+
+    Rc::new(GraphQLUnion {
+      name: self.name,
+      description: self.description,
+      types: self.types,
+    })
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -508,5 +552,11 @@ mod tests {
     AUTHOR.replace_field_placeholder_type("recentArticle", ARTICLE);
     assert_eq!("Article",
                AUTHOR.fields.borrow()["recentArticle"].typ.name());
+
+    let SEARCH_RESULT = &GraphQLUnionBuilder::new("SearchResult")
+                           .with_description("Result will be either Author or Article")
+                           .maybe_type_of(AUTHOR)
+                           .maybe_type_of(ARTICLE)
+                           .build();
   }
 }
