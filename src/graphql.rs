@@ -50,7 +50,7 @@ pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
 }
-impl_graphql_type_for! { GraphQLEnum, GraphQLObject, GraphQLUnion }
+impl_graphql_type_for! { GraphQLEnum, GraphQLObject, GraphQLUnion, GraphQLInterface }
 
 pub trait GraphQLScalar: GraphQLType {
   type ValueType: Any;
@@ -93,9 +93,8 @@ pub struct GraphQLEnumValue {
   depreciation_reason: Option<String>,
 }
 
-
 pub trait GraphQLOutput: GraphQLType {}
-blanket_impl! { GraphQLOutput for GraphQLInt, GraphQLFloat, GraphQLString, GraphQLBoolean, GraphQLObject }
+blanket_impl! { GraphQLOutput for GraphQLInt, GraphQLFloat, GraphQLString, GraphQLBoolean, GraphQLObject, GraphQLInterface }
 impl<T> GraphQLOutput for GraphQLScalar<ValueType = T> {}
 
 pub trait GraphQLInput: GraphQLType {}
@@ -106,6 +105,7 @@ pub struct GraphQLObject {
   name: String,
   description: Option<String>,
   fields: RefCell<HashMap<String, GraphQLField>>,
+  interfaces: Option<HashMap<String, Rc<GraphQLInterface>>>,
 }
 
 impl GraphQLObject {
@@ -163,6 +163,48 @@ pub struct GraphQLUnion {
   types: HashMap<String, Rc<GraphQLObject>>,
 }
 
+pub struct GraphQLInterface {
+  name: String,
+  description: Option<String>,
+  fields: RefCell<HashMap<String, GraphQLField>>,
+}
+
+impl GraphQLInterface {
+  pub fn replace_field_placeholder_type<T: GraphQLOutput + 'static>(&self,
+                                                                    field_name: &str,
+                                                                    other_type: &Rc<T>) {
+    let mut field = self.fields.borrow_mut().remove(field_name);
+    if field.is_none() {
+      panic!("Object type {:} does not have placeholder {:} field.",
+             self.name,
+             field_name);
+    }
+
+    if let Some(mut f) = field {
+      let f_type_name = f.typ.name().to_owned();
+      if !f_type_name.ends_with("___TypePlaceholder___") {
+        panic!("Field {:} in object type {:} is not a placeholder.",
+               field_name,
+               self.name);
+      }
+
+      let target_type = f_type_name.trim_right_matches("___TypePlaceholder___");
+      if target_type != other_type.name() {
+        panic!("Placeholder {:} in object type {:} should replaced by {:} type instead of \
+                {:} type.",
+               field_name,
+               self.name,
+               target_type,
+               other_type.name());
+      }
+
+      f.typ = other_type.clone();
+      self.fields.borrow_mut().insert(field_name.to_owned(), f);
+    }
+  }
+}
+
+
 // Builders
 struct Placeholder {
   name: String,
@@ -190,6 +232,7 @@ pub struct GraphQLObjectBuilder {
   name: String,
   description: Option<String>,
   fields: HashMap<String, GraphQLField>,
+  interfaces: Option<HashMap<String, Rc<GraphQLInterface>>>,
 }
 
 impl GraphQLObjectBuilder {
@@ -198,6 +241,7 @@ impl GraphQLObjectBuilder {
       name: name.to_owned(),
       description: None,
       fields: HashMap::new(),
+      interfaces: None,
     }
   }
 
@@ -214,6 +258,20 @@ impl GraphQLObjectBuilder {
     self
   }
 
+  pub fn impl_interface(mut self, interface: &Rc<GraphQLInterface>) -> GraphQLObjectBuilder {
+    match self.interfaces {
+      Some(ref mut interfaces) => {
+        interfaces.insert(interface.name().to_owned(), interface.clone());
+      }
+      None => {
+        let mut interfaces = HashMap::new();
+        interfaces.insert(interface.name().to_owned(), interface.clone());
+        self.interfaces = Some(interfaces);
+      }
+    }
+    self
+  }
+
   pub fn build(self) -> Rc<GraphQLObject> {
     if self.fields.len() == 0 {
       panic!("Object type {:} must contains at least one field",
@@ -224,6 +282,7 @@ impl GraphQLObjectBuilder {
       name: self.name,
       description: self.description,
       fields: RefCell::new(self.fields),
+      interfaces: self.interfaces,
     })
   }
 }
@@ -451,11 +510,54 @@ impl GraphQLUnionBuilder {
   }
 }
 
+pub struct GraphQLInterfaceBuilder {
+  name: String,
+  description: Option<String>,
+  fields: HashMap<String, GraphQLField>,
+}
+
+impl GraphQLInterfaceBuilder {
+  pub fn new(name: &str) -> GraphQLInterfaceBuilder {
+    GraphQLInterfaceBuilder {
+      name: name.to_owned(),
+      description: None,
+      fields: HashMap::new(),
+    }
+  }
+
+  pub fn with_description(mut self, description: &str) -> GraphQLInterfaceBuilder {
+    self.description = Some(description.to_owned());
+    self
+  }
+
+  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInterfaceBuilder
+    where F: Fn(GraphQLFieldBuilder) -> GraphQLFieldBuilder
+  {
+    let field = f(GraphQLFieldBuilder::new(name)).build();
+    self.fields.insert(name.to_owned(), field);
+    self
+  }
+
+  pub fn build(self) -> Rc<GraphQLInterface> {
+    if self.fields.len() == 0 {
+      panic!("Object type {:} must contains at least one field",
+             self.name);
+    }
+
+    Rc::new(GraphQLInterface {
+      name: self.name,
+      description: self.description,
+      fields: RefCell::new(self.fields),
+    })
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use std::rc::Rc;
   use std::cell::RefCell;
+  use std::collections::HashMap;
 
   #[test]
   fn test_scalar_type() {
@@ -558,5 +660,32 @@ mod tests {
                            .maybe_type_of(AUTHOR)
                            .maybe_type_of(ARTICLE)
                            .build();
+  }
+
+  #[test]
+  fn test_interface_type() {
+    let INT = &Rc::new(GraphQLInt);
+    let FLOAT = &Rc::new(GraphQLFloat);
+    let STRING = &Rc::new(GraphQLString);
+    let BOOLEAN = &Rc::new(GraphQLBoolean);
+
+    let NAMED_ENTITY = &GraphQLInterfaceBuilder::new("NamedEntity")
+                          .field("name", |f| f.type_of(STRING))
+                          .build();
+
+    let PERSON = &GraphQLObjectBuilder::new("Person")
+                    .field("name", |f| f.type_of(STRING))
+                    .field("age", |f| f.type_of(INT))
+                    .impl_interface(NAMED_ENTITY)
+                    .build();
+
+    let BUSINESS = &GraphQLObjectBuilder::new("Person")
+                      .field("name", |f| f.type_of(STRING))
+                      .field("employeeCount", |f| f.type_of(INT))
+                      .impl_interface(NAMED_ENTITY)
+                      .build();
+
+    assert!(PERSON.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
+    assert!(BUSINESS.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
   }
 }
