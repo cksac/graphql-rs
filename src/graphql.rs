@@ -30,7 +30,7 @@ macro_rules! impl_graphql_type_for {
             }
         }
       )*
-    };    
+    };
 }
 
 macro_rules! impl_scalar_type_for {
@@ -90,7 +90,7 @@ pub struct GraphQLEnum {
 pub struct GraphQLEnumValue {
   value: String,
   description: Option<String>,
-  depreciation_reason: Option<String>,
+  deprecation_reason: Option<String>,
 }
 
 pub trait GraphQLOutput: GraphQLType {}
@@ -146,7 +146,7 @@ impl GraphQLObject {
 pub struct GraphQLField {
   name: String,
   description: Option<String>,
-  depreciation_reason: Option<String>,
+  deprecation_reason: Option<String>,
   typ: Rc<GraphQLOutput>,
   args: Option<HashMap<String, GraphQLArgument>>,
 }
@@ -290,7 +290,7 @@ impl GraphQLObjectBuilder {
 pub struct GraphQLFieldBuilder {
   name: String,
   description: Option<String>,
-  depreciation_reason: Option<String>,
+  deprecation_reason: Option<String>,
   typ: Option<Rc<GraphQLOutput>>,
   args: Option<HashMap<String, GraphQLArgument>>,
 }
@@ -300,7 +300,7 @@ impl GraphQLFieldBuilder {
     GraphQLFieldBuilder {
       name: name.to_owned(),
       description: None,
-      depreciation_reason: None,
+      deprecation_reason: None,
       typ: None,
       args: None,
     }
@@ -311,8 +311,8 @@ impl GraphQLFieldBuilder {
     self
   }
 
-  pub fn mark_depreciated(mut self, reason: &str) -> GraphQLFieldBuilder {
-    self.depreciation_reason = Some(reason.to_owned());
+  pub fn mark_deprecated(mut self, reason: &str) -> GraphQLFieldBuilder {
+    self.deprecation_reason = Some(reason.to_owned());
     self
   }
 
@@ -351,7 +351,7 @@ impl GraphQLFieldBuilder {
     GraphQLField {
       name: self.name,
       description: self.description,
-      depreciation_reason: self.depreciation_reason,
+      deprecation_reason: self.deprecation_reason,
       typ: self.typ.unwrap(),
       args: None,
     }
@@ -435,7 +435,7 @@ impl GraphQLEnumBuilder {
 pub struct GraphQLEnumValueBuilder {
   value: String,
   description: Option<String>,
-  depreciation_reason: Option<String>,
+  deprecation_reason: Option<String>,
 }
 
 impl GraphQLEnumValueBuilder {
@@ -443,7 +443,7 @@ impl GraphQLEnumValueBuilder {
     GraphQLEnumValueBuilder {
       value: value.to_owned(),
       description: None,
-      depreciation_reason: None,
+      deprecation_reason: None,
     }
   }
 
@@ -452,13 +452,13 @@ impl GraphQLEnumValueBuilder {
     self
   }
 
-  pub fn mark_depreciated(mut self, depreciation_reason: &str) -> GraphQLEnumValueBuilder {
-    let reason = depreciation_reason.trim().to_owned();
+  pub fn mark_deprecated(mut self, deprecation_reason: &str) -> GraphQLEnumValueBuilder {
+    let reason = deprecation_reason.trim().to_owned();
     if reason.len() == 0 {
       panic!("Deprecation reason for enum value {:} cannot be empty",
              self.value);
     }
-    self.depreciation_reason = Some(reason);
+    self.deprecation_reason = Some(reason);
     self
   }
 
@@ -466,7 +466,7 @@ impl GraphQLEnumValueBuilder {
     GraphQLEnumValue {
       value: self.value,
       description: self.description,
-      depreciation_reason: self.depreciation_reason,
+      deprecation_reason: self.deprecation_reason,
     }
   }
 }
