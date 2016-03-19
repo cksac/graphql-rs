@@ -30,7 +30,7 @@ macro_rules! impl_graphql_type_for {
             }
         }
       )*
-    };    
+    };
 }
 
 macro_rules! impl_scalar_type_for {
@@ -619,73 +619,73 @@ mod tests {
 
   #[test]
   fn test_object_type() {
-    let INT = &Rc::new(GraphQLInt);
-    let FLOAT = &Rc::new(GraphQLFloat);
-    let STRING = &Rc::new(GraphQLString);
-    let BOOLEAN = &Rc::new(GraphQLBoolean);
+    let int = &Rc::new(GraphQLInt);
+    let float = &Rc::new(GraphQLFloat);
+    let string = &Rc::new(GraphQLString);
+    let boolean = &Rc::new(GraphQLBoolean);
 
-    let IMAGE = &GraphQLObjectBuilder::new("Image")
+    let image = &GraphQLObjectBuilder::new("Image")
                    .with_description("Image Type")
-                   .field("url", |f| f.type_of(STRING))
-                   .field("width", |f| f.type_of(INT))
-                   .field("height", |f| f.type_of(INT))
+                   .field("url", |f| f.type_of(string))
+                   .field("width", |f| f.type_of(int))
+                   .field("height", |f| f.type_of(int))
                    .build();
 
-    let AUTHOR = &GraphQLObjectBuilder::new("Author")
+    let author = &GraphQLObjectBuilder::new("Author")
                     .with_description("Author Type")
-                    .field("id", |f| f.type_of(STRING))
-                    .field("name", |f| f.type_of(STRING))
+                    .field("id", |f| f.type_of(string))
+                    .field("name", |f| f.type_of(string))
                     .field("pic", |f| {
-                      f.type_of(IMAGE)
-                       .arg("width", |a| a.type_of(INT))
-                       .arg("height", |a| a.type_of(INT))
+                      f.type_of(image)
+                       .arg("width", |a| a.type_of(int))
+                       .arg("height", |a| a.type_of(int))
                     })
                     .field("recentArticle", |f| f.placeholder_type_of("Article"))
                     .build();
 
-    let ARTICLE = &GraphQLObjectBuilder::new("Article")
-                     .field("id", |f| f.type_of(STRING))
-                     .field("isPublished", |f| f.type_of(BOOLEAN))
-                     .field("author", |f| f.type_of(AUTHOR))
-                     .field("title", |f| f.type_of(STRING))
-                     .field("body", |f| f.type_of(STRING))
+    let article = &GraphQLObjectBuilder::new("Article")
+                     .field("id", |f| f.type_of(string))
+                     .field("isPublished", |f| f.type_of(boolean))
+                     .field("author", |f| f.type_of(author))
+                     .field("title", |f| f.type_of(string))
+                     .field("body", |f| f.type_of(string))
                      .build();
 
-    AUTHOR.replace_field_placeholder_type("recentArticle", ARTICLE);
+    author.replace_field_placeholder_type("recentArticle", article);
     assert_eq!("Article",
-               AUTHOR.fields.borrow()["recentArticle"].typ.name());
+               author.fields.borrow()["recentArticle"].typ.name());
 
-    let SEARCH_RESULT = &GraphQLUnionBuilder::new("SearchResult")
+    let search_result = &GraphQLUnionBuilder::new("SearchResult")
                            .with_description("Result will be either Author or Article")
-                           .maybe_type_of(AUTHOR)
-                           .maybe_type_of(ARTICLE)
+                           .maybe_type_of(author)
+                           .maybe_type_of(article)
                            .build();
   }
 
   #[test]
   fn test_interface_type() {
-    let INT = &Rc::new(GraphQLInt);
-    let FLOAT = &Rc::new(GraphQLFloat);
-    let STRING = &Rc::new(GraphQLString);
-    let BOOLEAN = &Rc::new(GraphQLBoolean);
+    let int = &Rc::new(GraphQLInt);
+    let float = &Rc::new(GraphQLFloat);
+    let string = &Rc::new(GraphQLString);
+    let boolean = &Rc::new(GraphQLBoolean);
 
-    let NAMED_ENTITY = &GraphQLInterfaceBuilder::new("NamedEntity")
-                          .field("name", |f| f.type_of(STRING))
+    let named_entity = &GraphQLInterfaceBuilder::new("NamedEntity")
+                          .field("name", |f| f.type_of(string))
                           .build();
 
-    let PERSON = &GraphQLObjectBuilder::new("Person")
-                    .field("name", |f| f.type_of(STRING))
-                    .field("age", |f| f.type_of(INT))
-                    .impl_interface(NAMED_ENTITY)
+    let person = &GraphQLObjectBuilder::new("Person")
+                    .field("name", |f| f.type_of(string))
+                    .field("age", |f| f.type_of(int))
+                    .impl_interface(named_entity)
                     .build();
 
-    let BUSINESS = &GraphQLObjectBuilder::new("Person")
-                      .field("name", |f| f.type_of(STRING))
-                      .field("employeeCount", |f| f.type_of(INT))
-                      .impl_interface(NAMED_ENTITY)
+    let business = &GraphQLObjectBuilder::new("Person")
+                      .field("name", |f| f.type_of(string))
+                      .field("employeeCount", |f| f.type_of(int))
+                      .impl_interface(named_entity)
                       .build();
 
-    assert!(PERSON.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
-    assert!(BUSINESS.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
+    assert!(person.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
+    assert!(business.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
   }
 }
