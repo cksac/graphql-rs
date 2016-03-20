@@ -8,5 +8,4 @@ repository = "https://github.com/cksac/graphql-rs"
 homepage = "https://github.com/cksac/graphql-rs"
 
 [lib]
-name = "graphql_parser"
 path = "lib.rs"
