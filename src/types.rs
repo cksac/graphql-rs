@@ -49,15 +49,15 @@ pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
 }
-impl_graphql_type_for! { GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLInputObject }
+impl_graphql_type_for! { GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLInputObject, GraphQLList, GraphQLInputList, GraphQLInputNonNull, GraphQLNonNull }
 
 pub trait GraphQLInput: GraphQLType {}
 impl<T: GraphQLScalar> GraphQLInput for T {}
-blanket_impl! { GraphQLInput for GraphQLEnum, GraphQLInputObject }
+blanket_impl! { GraphQLInput for GraphQLEnum, GraphQLInputObject, GraphQLInputList, GraphQLInputNonNull }
 
 pub trait GraphQLOutput: GraphQLType {}
 impl<T: GraphQLScalar> GraphQLOutput for T {}
-blanket_impl! { GraphQLOutput for GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum }
+blanket_impl! { GraphQLOutput for GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLList, GraphQLNonNull }
 
 /// Scalars
 pub trait GraphQLScalar: GraphQLType {
@@ -220,6 +220,32 @@ pub struct GraphQLInputField {
   name: String,
   description: Option<String>,
   typ: Rc<GraphQLInput>,
+}
+
+/// List
+pub struct GraphQLInputList {
+  name: String,
+  description: Option<String>,
+  of_typ: Rc<GraphQLInput>,
+}
+
+pub struct GraphQLList {
+  name: String,
+  description: Option<String>,
+  of_typ: Rc<GraphQLOutput>,
+}
+
+/// Non-Null
+pub struct GraphQLInputNonNull {
+  name: String,
+  description: Option<String>,
+  of_typ: Rc<GraphQLInput>,
+}
+
+pub struct GraphQLNonNull {
+  name: String,
+  description: Option<String>,
+  of_typ: Rc<GraphQLOutput>,
 }
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -553,16 +579,16 @@ impl GraphQLEnumType {
     self
   }
 
-  pub fn build(self) -> GraphQLEnum {
+  pub fn build(self) -> Rc<GraphQLEnum> {
     if self.values.len() == 0 {
       panic!("Enum {:} must has at least one value defined.", self.name);
     }
 
-    GraphQLEnum {
+    Rc::new(GraphQLEnum {
       name: self.name,
       description: self.description,
       values: self.values,
-    }
+    })
   }
 }
 
@@ -678,5 +704,45 @@ impl GraphQLInputFieldBuilder {
       description: self.description,
       typ: self.typ.unwrap(),
     }
+  }
+}
+
+/// List type builder
+pub struct GraphQLListType;
+impl GraphQLListType {
+  pub fn input<T: GraphQLInput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLInputList> {
+    Rc::new(GraphQLInputList {
+      name: of_type.name().to_owned(),
+      description: Some(format!("List of {}", of_type.name())),
+      of_typ: of_type.clone(),
+    })
+  }
+
+  pub fn output<T: GraphQLOutput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLList> {
+    Rc::new(GraphQLList {
+      name: of_type.name().to_owned(),
+      description: Some(format!("List of {}", of_type.name())),
+      of_typ: of_type.clone(),
+    })
+  }
+}
+
+/// Non-null type builder
+pub struct GraphQLNonNullType;
+impl GraphQLNonNullType {
+  pub fn input<T: GraphQLInput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLInputNonNull> {
+    Rc::new(GraphQLInputNonNull {
+      name: of_type.name().to_owned(),
+      description: Some(format!("Non-null {}", of_type.name())),
+      of_typ: of_type.clone(),
+    })
+  }
+
+  pub fn output<T: GraphQLOutput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLNonNull> {
+    Rc::new(GraphQLNonNull {
+      name: of_type.name().to_owned(),
+      description: Some(format!("Non-null {}", of_type.name())),
+      of_typ: of_type.clone(),
+    })
   }
 }

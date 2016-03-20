@@ -179,10 +179,11 @@ mod tests {
   #[test]
   fn test_input_object_type() {
     let float = &GraphQLScalarType::float();
+    let non_null_float = &GraphQLNonNullType::input(float);
 
     let geo_point = &GraphQLInputObjectType::new("GeoPoint")
-                       .field("lat", |f| f.type_of(float))
-                       .field("lon", |f| f.type_of(float))
+                       .field("lat", |f| f.type_of(non_null_float))
+                       .field("lon", |f| f.type_of(non_null_float))
                        .field("alt", |f| f.type_of(float))
                        .build();
     assert_eq!("GeoPoint", geo_point.name());
