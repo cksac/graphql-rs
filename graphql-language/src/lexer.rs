@@ -2,7 +2,7 @@
 use std::str::CharIndices;
 use std::iter::Peekable;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Token<'a> {
   Eof(usize, usize),
   Bang(usize, usize),
