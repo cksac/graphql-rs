@@ -4,7 +4,7 @@ use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
 pub enum Token<'a> {
-  Eof(usize, usize),
+  Eof(usize),
   Punctuator(Punctuator, usize),
   Name(&'a str, usize, usize),
   IntValue(&'a str, usize, usize),
@@ -242,7 +242,7 @@ impl<'a> Iterator for Lexer<'a> {
 
     if !self.is_eof && take_eof!(self) {
       self.is_eof = true;
-      return Some(Ok(Token::Eof(self.lo, self.hi)));
+      return Some(Ok(Token::Eof(self.hi)));
     }
     if self.is_eof {
       return None;
@@ -374,7 +374,7 @@ mod tests {
     test_next_token(&mut lexer, StringValue("simple", 23, 29));
     test_next_token(&mut lexer, StringValue("  white space   ", 32, 48));
     test_next_token(&mut lexer, Name("other_name", 50, 60));
-    test_next_token(&mut lexer, Eof(50,60));
+    test_next_token(&mut lexer, Eof(60));
     assert_eq!(None, lexer.next());
   }
 
@@ -399,7 +399,7 @@ mod tests {
     test_next_token(&mut lexer, FloatValue("0.00e-002", 64, 73));
     test_next_token(&mut lexer, FloatValue("-0.00E+002", 74, 84));
     test_next_token(&mut lexer, FloatValue("9.1E+0", 85, 91));
-    test_next_token(&mut lexer, Eof(85,91));
+    test_next_token(&mut lexer, Eof(91));
     assert_eq!(None, lexer.next());
   }
 
@@ -419,7 +419,7 @@ mod tests {
     test_next_token(&mut lexer, Punctuator(RightBrace, 24));
     test_next_token(&mut lexer, Punctuator(RightParen, 26));
     test_next_token(&mut lexer, Punctuator(Spread(33), 35));
-    test_next_token(&mut lexer, Eof(33,36));
+    test_next_token(&mut lexer, Eof(36));
     assert_eq!(None, lexer.next());
   }
 }
