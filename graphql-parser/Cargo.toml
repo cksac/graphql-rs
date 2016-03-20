@@ -1,15 +1,11 @@
 [package]
-name = "graphql-rs"
+name = "graphql-parser"
 version = "0.1.0"
 authors = ["cscks <cs.cksac@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/cksac/graphql-rs"
 homepage = "https://github.com/cksac/graphql-rs"
-description = """
-A implementation of GraphQL for Rust
-"""
-keywords = ["graphql"]
 
-[dependencies]
-graphql-parser = { path = "graphql-parser" }
+[lib]
+path = "lib.rs"
