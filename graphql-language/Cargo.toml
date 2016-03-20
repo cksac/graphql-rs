@@ -1,8 +1,14 @@
 [package]
-name = "graphql-parser"
+name = "graphql-language"
 version = "0.1.0"
+description = "Parses and performs various operations on the GraphQL language."
+keywords = ["graphql", "language", "parser"]
 authors = ["cscks <cs.cksac@gmail.com>"]
 license = "MIT"
 readme = "../README.md"
 repository = "https://github.com/cksac/graphql-rs"
 homepage = "https://github.com/cksac/graphql-rs"
+
+[lib]
+name = "graphql_language"
+path = "src/lib.rs"

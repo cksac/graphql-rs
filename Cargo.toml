@@ -12,4 +12,4 @@ A implementation of GraphQL for Rust
 keywords = ["graphql"]
 
 [dependencies]
-graphql-parser = { path = "graphql-parser" }
+graphql-language = { path = "graphql-language" }
