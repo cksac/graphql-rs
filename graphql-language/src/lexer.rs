@@ -195,7 +195,7 @@ fn scan_string(lexer: &mut Lexer) -> (bool, bool) {
 fn scan_number(lexer: &mut Lexer) -> (bool, bool) {
   let mut is_float = false;
   take!(lexer, '+' | '-');
-  // IntValueeger part
+  // Integer part
   if take!(lexer, '1'...'9') {
     take_while!(lexer, '0'...'9');
     if take!(lexer, ' ' | '\t' | '\r' | '\n' | ',') || take_eof!(lexer) {
