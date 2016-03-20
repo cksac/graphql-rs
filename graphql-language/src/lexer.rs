@@ -19,8 +19,8 @@ pub enum Token<'a> {
   RightBrace(usize, usize),
   Pipe(usize, usize),
   Name(usize, usize, &'a str),
-  Int(usize, usize, i64),
-  Float(usize, usize, f64),
+  Int(usize, usize, &'a str),
+  Float(usize, usize, &'a str),
   String(usize, usize, &'a str),
 }
 
@@ -309,8 +309,8 @@ impl<'a> Iterator for Lexer<'a> {
           match scan_number(self) {
             (false, false) => Some(Err("Invalid integer number.")),
             (false, true) => Some(Err("Invalid float number.")),
-            (true, false) => Some(Ok(Token::Int(self.lo, self.hi, self.input[self.lo..self.hi].parse().unwrap()))),
-            (true, true) => Some(Ok(Token::Float(self.lo, self.hi, self.input[self.lo..self.hi].parse().unwrap()))),
+            (true, false) => Some(Ok(Token::Int(self.lo, self.hi, &self.input[self.lo..self.hi]))),
+            (true, true) => Some(Ok(Token::Float(self.lo, self.hi, &self.input[self.lo..self.hi]))),
           }
         }
         '"' => {
@@ -372,24 +372,44 @@ mod tests {
   fn test_number() {
     let mut lexer = Lexer::new("-9 0 9 -0 -9 1234 -1234 0.0 -0.0 1.0 -1.012 -0.101 1.0e2 -1.0E2 \
                                 0.00e-002 -0.00E+002 9.1E+0");
-    test_next_token(&mut lexer, Token::Int(0,2,    -9));
-    test_next_token(&mut lexer, Token::Int(3,4,     0));
-    test_next_token(&mut lexer, Token::Int(5,6,     9));
-    test_next_token(&mut lexer, Token::Int(7,9,    -0));
-    test_next_token(&mut lexer, Token::Int(10,12,  -9));
-    test_next_token(&mut lexer, Token::Int(13,17,   1234));
-    test_next_token(&mut lexer, Token::Int(18,23,  -1234));
-    test_next_token(&mut lexer, Token::Float(24,27, 0.0));
-    test_next_token(&mut lexer, Token::Float(28,32,-0.0));
-    test_next_token(&mut lexer, Token::Float(33,36, 1.0));
-    test_next_token(&mut lexer, Token::Float(37,43,-1.012));
-    test_next_token(&mut lexer, Token::Float(44,50,-0.101));
-    test_next_token(&mut lexer, Token::Float(51,56, 1.0e2));
-    test_next_token(&mut lexer, Token::Float(57,63,-1.0E2));
-    test_next_token(&mut lexer, Token::Float(64,73, 0.00e-002));
-    test_next_token(&mut lexer, Token::Float(74,84,-0.00E+002));
-    test_next_token(&mut lexer, Token::Float(85,91, 9.1E+0));
+    test_next_token(&mut lexer, Token::Int(0,2,    "-9"));
+    test_next_token(&mut lexer, Token::Int(3,4,    "0"));
+    test_next_token(&mut lexer, Token::Int(5,6,    "9"));
+    test_next_token(&mut lexer, Token::Int(7,9,    "-0"));
+    test_next_token(&mut lexer, Token::Int(10,12,  "-9"));
+    test_next_token(&mut lexer, Token::Int(13,17,  "1234"));
+    test_next_token(&mut lexer, Token::Int(18,23,  "-1234"));
+    test_next_token(&mut lexer, Token::Float(24,27,"0.0"));
+    test_next_token(&mut lexer, Token::Float(28,32,"-0.0"));
+    test_next_token(&mut lexer, Token::Float(33,36,"1.0"));
+    test_next_token(&mut lexer, Token::Float(37,43,"-1.012"));
+    test_next_token(&mut lexer, Token::Float(44,50,"-0.101"));
+    test_next_token(&mut lexer, Token::Float(51,56,"1.0e2"));
+    test_next_token(&mut lexer, Token::Float(57,63,"-1.0E2"));
+    test_next_token(&mut lexer, Token::Float(64,73,"0.00e-002"));
+    test_next_token(&mut lexer, Token::Float(74,84,"-0.00E+002"));
+    test_next_token(&mut lexer, Token::Float(85,91,"9.1E+0"));
     test_next_token(&mut lexer, Token::Eof(85,91));
+    assert_eq!(None, lexer.next());
+  }
+
+  #[test]
+  fn test_symbol() {
+    let mut lexer = Lexer::new("@ !  :$ =    [  {   (|] } )      ...");
+    test_next_token(&mut lexer, Token::At(0,0));
+    test_next_token(&mut lexer, Token::Bang(2,2));
+    test_next_token(&mut lexer, Token::Colon(5,5));
+    test_next_token(&mut lexer, Token::Dollar(6,6));
+    test_next_token(&mut lexer, Token::Equals(8,8));
+    test_next_token(&mut lexer, Token::LeftBracket(13,13));
+    test_next_token(&mut lexer, Token::LeftBrace(16,16));
+    test_next_token(&mut lexer, Token::LeftParen(20,20));
+    test_next_token(&mut lexer, Token::Pipe(21,21));
+    test_next_token(&mut lexer, Token::RightBracket(22,22));
+    test_next_token(&mut lexer, Token::RightBrace(24,24));
+    test_next_token(&mut lexer, Token::RightParen(26,26));
+    test_next_token(&mut lexer, Token::Spread(33,35));
+    test_next_token(&mut lexer, Token::Eof(33,36));
     assert_eq!(None, lexer.next());
   }
 }
