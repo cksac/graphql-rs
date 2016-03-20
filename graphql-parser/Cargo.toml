@@ -3,9 +3,6 @@ name = "graphql-parser"
 version = "0.1.0"
 authors = ["cscks <cs.cksac@gmail.com>"]
 license = "MIT"
-readme = "README.md"
+readme = "../README.md"
 repository = "https://github.com/cksac/graphql-rs"
 homepage = "https://github.com/cksac/graphql-rs"
-
-[lib]
-path = "lib.rs"
