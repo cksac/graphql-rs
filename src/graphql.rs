@@ -204,6 +204,17 @@ impl GraphQLInterface {
   }
 }
 
+pub struct GraphQLInputObject {
+  name: String,
+  description: Option<String>,
+  fields: RefCell<HashMap<String, GraphQLInputField>>,
+}
+
+pub struct GraphQLInputField {
+  name: String,
+  description: Option<String>,
+  typ: Rc<GraphQLInput>,
+}
 
 // Builders
 struct Placeholder {
@@ -552,6 +563,81 @@ impl GraphQLInterfaceBuilder {
   }
 }
 
+pub struct GraphQLInputObjectBuilder {
+  name: String,
+  description: Option<String>,
+  fields: HashMap<String, GraphQLInputField>,
+}
+
+impl GraphQLInputObjectBuilder {
+  pub fn new(name: &str) -> GraphQLInputObjectBuilder {
+    GraphQLInputObjectBuilder {
+      name: name.to_owned(),
+      description: None,
+      fields: HashMap::new(),
+    }
+  }
+
+  pub fn with_description(mut self, description: &str) -> GraphQLInputObjectBuilder {
+    self.description = Some(description.to_owned());
+    self
+  }
+
+  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInputObjectBuilder
+    where F: Fn(GraphQLInputFieldBuilder) -> GraphQLInputFieldBuilder
+  {
+    let field = f(GraphQLInputFieldBuilder::new(name)).build();
+    self.fields.insert(name.to_owned(), field);
+    self
+  }
+
+  pub fn build(self) -> Rc<GraphQLInputObject> {
+    if self.fields.len() == 0 {
+      panic!("Object type {:} must contains at least one field",
+             self.name);
+    }
+
+    Rc::new(GraphQLInputObject {
+      name: self.name,
+      description: self.description,
+      fields: RefCell::new(self.fields),
+    })
+  }
+}
+
+pub struct GraphQLInputFieldBuilder {
+  name: String,
+  description: Option<String>,
+  typ: Option<Rc<GraphQLInput>>,
+}
+
+impl GraphQLInputFieldBuilder {
+  pub fn new(name: &str) -> GraphQLInputFieldBuilder {
+    GraphQLInputFieldBuilder {
+      name: name.to_owned(),
+      description: None,
+      typ: None,
+    }
+  }
+
+  pub fn type_of<T: GraphQLInput + 'static>(mut self, typ: &Rc<T>) -> GraphQLInputFieldBuilder {
+    self.typ = Some(typ.clone());
+    self
+  }
+
+  pub fn build(self) -> GraphQLInputField {
+    if self.typ.is_none() {
+      panic!("Input object field {:} missing type defination", self.name);
+    }
+
+    GraphQLInputField {
+      name: self.name,
+      description: self.description,
+      typ: self.typ.unwrap(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -687,5 +773,18 @@ mod tests {
 
     assert!(person.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
     assert!(business.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
+  }
+
+  #[test]
+  fn test_input_object() {
+    let float = &Rc::new(GraphQLFloat);
+
+    let geo_point = &GraphQLInputObjectBuilder::new("GeoPoint")
+                       .field("lat", |f| f.type_of(float))
+                       .field("lon", |f| f.type_of(float))
+                       .field("alt", |f| f.type_of(float))
+                       .build();
+
+    assert_eq!(3, geo_point.fields.borrow().len());
   }
 }
