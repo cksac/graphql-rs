@@ -31,7 +31,7 @@ macro_rules! impl_node_for {
 /// Name :: /[_A-Za-z][_0-9A-Za-z]*/
 pub struct Name<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: String
+  pub value: &'a str
 }
 
 impl_node_for! { Name }
@@ -39,7 +39,7 @@ impl_node_for! { Name }
 /// IntValue :: IntegerPart
 pub struct IntValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: String
+  pub value: &'a str
 }
 
 impl_node_for! { IntValue }
@@ -50,7 +50,7 @@ impl_node_for! { IntValue }
 ///   - IntegerPart FractionalPart ExponentPart
 pub struct FloatValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: String
+  pub value: &'a str
 }
 
 impl_node_for! { FloatValue }
