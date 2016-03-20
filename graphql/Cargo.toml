@@ -1,15 +1,17 @@
 [package]
 name = "graphql-rs"
 version = "0.1.0"
+description = "An implementation of GraphQL for Rust."
+keywords = ["graphql", "core"]
 authors = ["cscks <cs.cksac@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/cksac/graphql-rs"
 homepage = "https://github.com/cksac/graphql-rs"
-description = """
-A implementation of GraphQL for Rust
-"""
-keywords = ["graphql"]
+
+[lib]
+name = "graphql"
+path = "src/lib.rs"
 
 [dependencies]
-graphql-language = { path = "graphql-language" }
+graphql-language = { path = "../graphql-language" }
