@@ -160,7 +160,7 @@ impl GraphQLInterface {
                                                                     other_type: &Rc<T>) {
     let mut field = self.fields.borrow_mut().remove(field_name);
     if field.is_none() {
-      panic!("Object type {:} does not have placeholder {:} field.",
+      panic!("Interface type {:} does not have placeholder {:} field.",
              self.name,
              field_name);
     }
@@ -168,14 +168,14 @@ impl GraphQLInterface {
     if let Some(mut f) = field {
       let f_type_name = f.typ.name().to_owned();
       if !f_type_name.ends_with("___TypePlaceholder___") {
-        panic!("Field {:} in object type {:} is not a placeholder.",
+        panic!("Field {:} in interface type {:} is not a placeholder.",
                field_name,
                self.name);
       }
 
       let target_type = f_type_name.trim_right_matches("___TypePlaceholder___");
       if target_type != other_type.name() {
-        panic!("Placeholder {:} in object type {:} should replaced by {:} type instead of \
+        panic!("Placeholder {:} in interface type {:} should replaced by {:} type instead of \
                 {:} type.",
                field_name,
                self.name,
@@ -368,7 +368,7 @@ impl GraphQLInterfaceType {
 
   pub fn build(self) -> Rc<GraphQLInterface> {
     if self.fields.len() == 0 {
-      panic!("Object type {:} must contains at least one field",
+      panic!("Interface type {:} must contains at least one field",
              self.name);
     }
 
@@ -636,7 +636,7 @@ impl GraphQLInputObjectType {
 
   pub fn build(self) -> Rc<GraphQLInputObject> {
     if self.fields.len() == 0 {
-      panic!("Object type {:} must contains at least one field",
+      panic!("Input object type {:} must contains at least one field",
              self.name);
     }
 
