@@ -5,23 +5,28 @@ use std::iter::Peekable;
 #[derive(PartialEq, Debug)]
 pub enum Token<'a> {
   Eof(usize, usize),
-  Bang(usize, usize),
-  Dollar(usize, usize),
-  LeftParen(usize, usize),
-  RightParen(usize, usize),
-  Spread(usize, usize),
-  Colon(usize, usize),
-  Equals(usize, usize),
-  At(usize, usize),
-  LeftBracket(usize, usize),
-  RightBracket(usize, usize),
-  LeftBrace(usize, usize),
-  RightBrace(usize, usize),
-  Pipe(usize, usize),
-  Name(usize, usize, &'a str),
-  Int(usize, usize, &'a str),
-  Float(usize, usize, &'a str),
-  String(usize, usize, &'a str),
+  Punctuator(Punctuator, usize),
+  Name(&'a str, usize, usize),
+  IntValue(&'a str, usize, usize),
+  FloatValue(&'a str, usize, usize),
+  StringValue(&'a str, usize, usize),
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Punctuator {
+  Bang,
+  Dollar,
+  LeftParen,
+  RightParen,
+  Spread(usize),
+  Colon,
+  Equals,
+  At,
+  LeftBracket,
+  RightBracket,
+  LeftBrace,
+  RightBrace,
+  Pipe,
 }
 
 macro_rules! take {
