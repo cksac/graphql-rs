@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -50,13 +49,23 @@ pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
 }
-impl_graphql_type_for! { GraphQLEnum, GraphQLObject, GraphQLUnion, GraphQLInterface }
+impl_graphql_type_for! { GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLInputObject }
 
+pub trait GraphQLInput: GraphQLType {}
+impl<T: GraphQLScalar> GraphQLInput for T {}
+blanket_impl! { GraphQLInput for GraphQLEnum, GraphQLInputObject }
+
+pub trait GraphQLOutput: GraphQLType {}
+impl<T: GraphQLScalar> GraphQLOutput for T {}
+blanket_impl! { GraphQLOutput for GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum }
+
+/// Scalars
 pub trait GraphQLScalar: GraphQLType {
-  type ValueType: Any;
+  type ValueType;
   fn coerce_literal(&self, value: &str) -> Option<Self::ValueType>;
 }
 
+/// Built-in Scalars
 pub struct GraphQLInt;
 impl_scalar_type_for! { GraphQLInt as i32 where
   name = "Int",
@@ -81,26 +90,7 @@ impl_scalar_type_for! { GraphQLBoolean as bool where
   description = "The Boolean scalar type represents true or false."
 }
 
-pub struct GraphQLEnum {
-  name: String,
-  description: Option<String>,
-  values: HashMap<String, GraphQLEnumValue>,
-}
-
-pub struct GraphQLEnumValue {
-  value: String,
-  description: Option<String>,
-  deprecation_reason: Option<String>,
-}
-
-pub trait GraphQLOutput: GraphQLType {}
-blanket_impl! { GraphQLOutput for GraphQLInt, GraphQLFloat, GraphQLString, GraphQLBoolean, GraphQLObject, GraphQLInterface }
-impl<T> GraphQLOutput for GraphQLScalar<ValueType = T> {}
-
-pub trait GraphQLInput: GraphQLType {}
-blanket_impl! { GraphQLInput for GraphQLInt, GraphQLFloat, GraphQLString, GraphQLBoolean }
-impl<T> GraphQLInput for GraphQLScalar<ValueType = T> {}
-
+/// Object
 pub struct GraphQLObject {
   name: String,
   description: Option<String>,
@@ -112,7 +102,7 @@ impl GraphQLObject {
   pub fn replace_field_placeholder_type<T: GraphQLOutput + 'static>(&self,
                                                                     field_name: &str,
                                                                     other_type: &Rc<T>) {
-    let mut field = self.fields.borrow_mut().remove(field_name);
+    let field = self.fields.borrow_mut().remove(field_name);
     if field.is_none() {
       panic!("Object type {:} does not have placeholder {:} field.",
              self.name,
@@ -157,12 +147,7 @@ pub struct GraphQLArgument {
   typ: Rc<GraphQLInput>,
 }
 
-pub struct GraphQLUnion {
-  name: String,
-  description: Option<String>,
-  types: HashMap<String, Rc<GraphQLObject>>,
-}
-
+/// Interfaces
 pub struct GraphQLInterface {
   name: String,
   description: Option<String>,
@@ -204,6 +189,27 @@ impl GraphQLInterface {
   }
 }
 
+/// Union
+pub struct GraphQLUnion {
+  name: String,
+  description: Option<String>,
+  types: HashMap<String, Rc<GraphQLObject>>,
+}
+
+/// Enum
+pub struct GraphQLEnum {
+  name: String,
+  description: Option<String>,
+  values: HashMap<String, GraphQLEnumValue>,
+}
+
+pub struct GraphQLEnumValue {
+  value: String,
+  description: Option<String>,
+  deprecation_reason: Option<String>,
+}
+
+/// Input Object
 pub struct GraphQLInputObject {
   name: String,
   description: Option<String>,
@@ -216,7 +222,11 @@ pub struct GraphQLInputField {
   typ: Rc<GraphQLInput>,
 }
 
-// Builders
+// /////////////////////////////////////////////////////////////////////////////
+// Type Builders
+// /////////////////////////////////////////////////////////////////////////////
+
+// Internal type placeholder for forward reference to other graphql type.
 struct Placeholder {
   name: String,
 }
@@ -237,18 +247,47 @@ impl GraphQLType for Placeholder {
   }
 }
 
-blanket_impl! { GraphQLOutput for Placeholder }
+impl GraphQLOutput for Placeholder {}
 
-pub struct GraphQLObjectBuilder {
+/// Scalar type builder
+pub struct GraphQLScalarType;
+
+impl GraphQLScalarType {
+  pub fn int() -> Rc<GraphQLInt> {
+    Rc::new(GraphQLInt)
+  }
+
+  pub fn float() -> Rc<GraphQLFloat> {
+    Rc::new(GraphQLFloat)
+  }
+
+  pub fn string() -> Rc<GraphQLString> {
+    Rc::new(GraphQLString)
+  }
+
+  pub fn boolean() -> Rc<GraphQLBoolean> {
+    Rc::new(GraphQLBoolean)
+  }
+
+  pub fn custom<T, F>(f: F) -> Rc<T>
+    where T: GraphQLScalar,
+          F: Fn() -> T
+  {
+    Rc::new(f())
+  }
+}
+
+/// Object type builder
+pub struct GraphQLObjectType {
   name: String,
   description: Option<String>,
   fields: HashMap<String, GraphQLField>,
   interfaces: Option<HashMap<String, Rc<GraphQLInterface>>>,
 }
 
-impl GraphQLObjectBuilder {
-  pub fn new(name: &str) -> GraphQLObjectBuilder {
-    GraphQLObjectBuilder {
+impl GraphQLObjectType {
+  pub fn new(name: &str) -> GraphQLObjectType {
+    GraphQLObjectType {
       name: name.to_owned(),
       description: None,
       fields: HashMap::new(),
@@ -256,12 +295,12 @@ impl GraphQLObjectBuilder {
     }
   }
 
-  pub fn with_description(mut self, description: &str) -> GraphQLObjectBuilder {
+  pub fn description(mut self, description: &str) -> GraphQLObjectType {
     self.description = Some(description.to_owned());
     self
   }
 
-  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLObjectBuilder
+  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLObjectType
     where F: Fn(GraphQLFieldBuilder) -> GraphQLFieldBuilder
   {
     let field = f(GraphQLFieldBuilder::new(name)).build();
@@ -269,7 +308,7 @@ impl GraphQLObjectBuilder {
     self
   }
 
-  pub fn impl_interface(mut self, interface: &Rc<GraphQLInterface>) -> GraphQLObjectBuilder {
+  pub fn impl_interface(mut self, interface: &Rc<GraphQLInterface>) -> GraphQLObjectType {
     match self.interfaces {
       Some(ref mut interfaces) => {
         interfaces.insert(interface.name().to_owned(), interface.clone());
@@ -298,6 +337,49 @@ impl GraphQLObjectBuilder {
   }
 }
 
+/// interface type builder
+pub struct GraphQLInterfaceType {
+  name: String,
+  description: Option<String>,
+  fields: HashMap<String, GraphQLField>,
+}
+
+impl GraphQLInterfaceType {
+  pub fn new(name: &str) -> GraphQLInterfaceType {
+    GraphQLInterfaceType {
+      name: name.to_owned(),
+      description: None,
+      fields: HashMap::new(),
+    }
+  }
+
+  pub fn description(mut self, description: &str) -> GraphQLInterfaceType {
+    self.description = Some(description.to_owned());
+    self
+  }
+
+  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInterfaceType
+    where F: Fn(GraphQLFieldBuilder) -> GraphQLFieldBuilder
+  {
+    let field = f(GraphQLFieldBuilder::new(name)).build();
+    self.fields.insert(name.to_owned(), field);
+    self
+  }
+
+  pub fn build(self) -> Rc<GraphQLInterface> {
+    if self.fields.len() == 0 {
+      panic!("Object type {:} must contains at least one field",
+             self.name);
+    }
+
+    Rc::new(GraphQLInterface {
+      name: self.name,
+      description: self.description,
+      fields: RefCell::new(self.fields),
+    })
+  }
+}
+
 pub struct GraphQLFieldBuilder {
   name: String,
   description: Option<String>,
@@ -317,7 +399,7 @@ impl GraphQLFieldBuilder {
     }
   }
 
-  pub fn with_description(mut self, description: &str) -> GraphQLFieldBuilder {
+  pub fn description(mut self, description: &str) -> GraphQLFieldBuilder {
     self.description = Some(description.to_owned());
     self
   }
@@ -354,7 +436,7 @@ impl GraphQLFieldBuilder {
     self
   }
 
-  pub fn build(self) -> GraphQLField {
+  fn build(self) -> GraphQLField {
     if self.typ.is_none() {
       panic!("Field {:} missing type defination", self.name);
     }
@@ -376,7 +458,7 @@ pub struct GraphQLArgumentBuilder {
 }
 
 impl GraphQLArgumentBuilder {
-  pub fn new(name: &str) -> GraphQLArgumentBuilder {
+  fn new(name: &str) -> GraphQLArgumentBuilder {
     GraphQLArgumentBuilder {
       name: name.to_owned(),
       description: None,
@@ -389,7 +471,7 @@ impl GraphQLArgumentBuilder {
     self
   }
 
-  pub fn build(self) -> GraphQLArgument {
+  fn build(self) -> GraphQLArgument {
     if self.typ.is_none() {
       panic!("Argument {:} missing type defination", self.name);
     }
@@ -402,27 +484,68 @@ impl GraphQLArgumentBuilder {
   }
 }
 
-pub struct GraphQLEnumBuilder {
+/// Union type builder
+pub struct GraphQLUnionType {
+  name: String,
+  description: Option<String>,
+  types: HashMap<String, Rc<GraphQLObject>>,
+}
+
+impl GraphQLUnionType {
+  pub fn new(name: &str) -> GraphQLUnionType {
+    GraphQLUnionType {
+      name: name.to_owned(),
+      description: None,
+      types: HashMap::new(),
+    }
+  }
+
+  pub fn description(mut self, description: &str) -> GraphQLUnionType {
+    self.description = Some(description.to_owned());
+    self
+  }
+
+  pub fn maybe_type_of(mut self, typ: &Rc<GraphQLObject>) -> GraphQLUnionType {
+    self.types.insert(typ.name().to_owned(), typ.clone());
+    self
+  }
+
+  pub fn build(self) -> Rc<GraphQLUnion> {
+    if self.types.len() == 0 {
+      panic!("Union {:} must has at least one possible type defined.",
+             self.name);
+    }
+
+    Rc::new(GraphQLUnion {
+      name: self.name,
+      description: self.description,
+      types: self.types,
+    })
+  }
+}
+
+/// Enum type builder
+pub struct GraphQLEnumType {
   name: String,
   description: Option<String>,
   values: HashMap<String, GraphQLEnumValue>,
 }
 
-impl GraphQLEnumBuilder {
-  pub fn new(name: &str) -> GraphQLEnumBuilder {
-    GraphQLEnumBuilder {
+impl GraphQLEnumType {
+  pub fn new(name: &str) -> GraphQLEnumType {
+    GraphQLEnumType {
       name: name.to_owned(),
       description: None,
       values: HashMap::new(),
     }
   }
 
-  pub fn with_description(mut self, description: &str) -> GraphQLEnumBuilder {
+  pub fn description(mut self, description: &str) -> GraphQLEnumType {
     self.description = Some(description.to_owned());
     self
   }
 
-  pub fn value<F>(mut self, name: &str, f: F) -> GraphQLEnumBuilder
+  pub fn value<F>(mut self, name: &str, f: F) -> GraphQLEnumType
     where F: Fn(GraphQLEnumValueBuilder) -> GraphQLEnumValueBuilder
   {
     let v = f(GraphQLEnumValueBuilder::new(name)).build();
@@ -450,7 +573,7 @@ pub struct GraphQLEnumValueBuilder {
 }
 
 impl GraphQLEnumValueBuilder {
-  pub fn new(value: &str) -> GraphQLEnumValueBuilder {
+  fn new(value: &str) -> GraphQLEnumValueBuilder {
     GraphQLEnumValueBuilder {
       value: value.to_owned(),
       description: None,
@@ -458,7 +581,7 @@ impl GraphQLEnumValueBuilder {
     }
   }
 
-  pub fn with_description(mut self, description: &str) -> GraphQLEnumValueBuilder {
+  pub fn description(mut self, description: &str) -> GraphQLEnumValueBuilder {
     self.description = Some(description.to_owned());
     self
   }
@@ -473,7 +596,7 @@ impl GraphQLEnumValueBuilder {
     self
   }
 
-  pub fn build(self) -> GraphQLEnumValue {
+  fn build(self) -> GraphQLEnumValue {
     GraphQLEnumValue {
       value: self.value,
       description: self.description,
@@ -482,108 +605,28 @@ impl GraphQLEnumValueBuilder {
   }
 }
 
-pub struct GraphQLUnionBuilder {
-  name: String,
-  description: Option<String>,
-  types: HashMap<String, Rc<GraphQLObject>>,
-}
-
-impl GraphQLUnionBuilder {
-  fn new(name: &str) -> GraphQLUnionBuilder {
-    GraphQLUnionBuilder {
-      name: name.to_owned(),
-      description: None,
-      types: HashMap::new(),
-    }
-  }
-
-  pub fn with_description(mut self, description: &str) -> GraphQLUnionBuilder {
-    self.description = Some(description.to_owned());
-    self
-  }
-
-  pub fn maybe_type_of(mut self, typ: &Rc<GraphQLObject>) -> GraphQLUnionBuilder {
-    self.types.insert(typ.name().to_owned(), typ.clone());
-    self
-  }
-
-  pub fn build(self) -> Rc<GraphQLUnion> {
-    if self.types.len() == 0 {
-      panic!("Union {:} must has at least one possible type defined.",
-             self.name);
-    }
-
-    Rc::new(GraphQLUnion {
-      name: self.name,
-      description: self.description,
-      types: self.types,
-    })
-  }
-}
-
-pub struct GraphQLInterfaceBuilder {
-  name: String,
-  description: Option<String>,
-  fields: HashMap<String, GraphQLField>,
-}
-
-impl GraphQLInterfaceBuilder {
-  pub fn new(name: &str) -> GraphQLInterfaceBuilder {
-    GraphQLInterfaceBuilder {
-      name: name.to_owned(),
-      description: None,
-      fields: HashMap::new(),
-    }
-  }
-
-  pub fn with_description(mut self, description: &str) -> GraphQLInterfaceBuilder {
-    self.description = Some(description.to_owned());
-    self
-  }
-
-  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInterfaceBuilder
-    where F: Fn(GraphQLFieldBuilder) -> GraphQLFieldBuilder
-  {
-    let field = f(GraphQLFieldBuilder::new(name)).build();
-    self.fields.insert(name.to_owned(), field);
-    self
-  }
-
-  pub fn build(self) -> Rc<GraphQLInterface> {
-    if self.fields.len() == 0 {
-      panic!("Object type {:} must contains at least one field",
-             self.name);
-    }
-
-    Rc::new(GraphQLInterface {
-      name: self.name,
-      description: self.description,
-      fields: RefCell::new(self.fields),
-    })
-  }
-}
-
-pub struct GraphQLInputObjectBuilder {
+/// Input object type builder
+pub struct GraphQLInputObjectType {
   name: String,
   description: Option<String>,
   fields: HashMap<String, GraphQLInputField>,
 }
 
-impl GraphQLInputObjectBuilder {
-  pub fn new(name: &str) -> GraphQLInputObjectBuilder {
-    GraphQLInputObjectBuilder {
+impl GraphQLInputObjectType {
+  pub fn new(name: &str) -> GraphQLInputObjectType {
+    GraphQLInputObjectType {
       name: name.to_owned(),
       description: None,
       fields: HashMap::new(),
     }
   }
 
-  pub fn with_description(mut self, description: &str) -> GraphQLInputObjectBuilder {
+  pub fn description(mut self, description: &str) -> GraphQLInputObjectType {
     self.description = Some(description.to_owned());
     self
   }
 
-  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInputObjectBuilder
+  pub fn field<F>(mut self, name: &str, f: F) -> GraphQLInputObjectType
     where F: Fn(GraphQLInputFieldBuilder) -> GraphQLInputFieldBuilder
   {
     let field = f(GraphQLInputFieldBuilder::new(name)).build();
@@ -612,7 +655,7 @@ pub struct GraphQLInputFieldBuilder {
 }
 
 impl GraphQLInputFieldBuilder {
-  pub fn new(name: &str) -> GraphQLInputFieldBuilder {
+  fn new(name: &str) -> GraphQLInputFieldBuilder {
     GraphQLInputFieldBuilder {
       name: name.to_owned(),
       description: None,
@@ -625,7 +668,7 @@ impl GraphQLInputFieldBuilder {
     self
   }
 
-  pub fn build(self) -> GraphQLInputField {
+  fn build(self) -> GraphQLInputField {
     if self.typ.is_none() {
       panic!("Input object field {:} missing type defination", self.name);
     }
@@ -635,156 +678,5 @@ impl GraphQLInputFieldBuilder {
       description: self.description,
       typ: self.typ.unwrap(),
     }
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use std::rc::Rc;
-  use std::cell::RefCell;
-  use std::collections::HashMap;
-
-  #[test]
-  fn test_scalar_type() {
-    let int_t = GraphQLInt;
-    assert_eq!("Int", int_t.name());
-    assert_eq!(Some(10), int_t.coerce_literal("10"));
-    assert_eq!(None, int_t.coerce_literal("10.1"));
-    assert_eq!(None, int_t.coerce_literal("a"));
-    assert_eq!(None, int_t.coerce_literal(&i64::max_value().to_string()));
-    assert_eq!(None, int_t.coerce_literal(&i64::min_value().to_string()));
-
-    let float_t = GraphQLFloat;
-    assert_eq!("Float", float_t.name());
-    assert_eq!(Some(2.0), float_t.coerce_literal("2.0"));
-    assert_eq!(Some(2.0), float_t.coerce_literal("2"));
-    assert_eq!(None, float_t.coerce_literal("2.0a"));
-
-    let string_t = GraphQLString;
-    assert_eq!("String", string_t.name());
-    assert_eq!(Some(String::from("abc")), string_t.coerce_literal("abc"));
-    assert_eq!(Some(String::from("2.0")), string_t.coerce_literal("2.0"));
-
-    let boolean_t = GraphQLBoolean;
-    assert_eq!("Boolean", boolean_t.name());
-    assert_eq!(Some(true), boolean_t.coerce_literal("true"));
-    assert_eq!(Some(false), boolean_t.coerce_literal("false"));
-    assert_eq!(None, boolean_t.coerce_literal("1"));
-    assert_eq!(None, boolean_t.coerce_literal("0"));
-    assert_eq!(None, boolean_t.coerce_literal("True"));
-    assert_eq!(None, boolean_t.coerce_literal("False"));
-    assert_eq!(None, boolean_t.coerce_literal("TRUE"));
-    assert_eq!(None, boolean_t.coerce_literal("FALSE"));
-  }
-
-  #[test]
-  fn test_enum_type() {
-    let rgb = GraphQLEnumBuilder::new("RGB")
-                .value("RED", |v| v)
-                .value("GREEN", |v| v)
-                .value("BLUE", |v| v)
-                .build();
-    assert_eq!(3, rgb.values.len());
-
-    let days = GraphQLEnumBuilder::new("DAYS")
-                 .with_description("Days of the week")
-                 .value("SAT", |v| v.with_description("Satarday"))
-                 .value("SUN", |v| v.with_description("Sunday"))
-                 .value("MON", |v| v.with_description("Monday"))
-                 .value("TUE", |v| v.with_description("Tuesday"))
-                 .value("WED", |v| v.with_description("Wedsday"))
-                 .value("THU", |v| v.with_description("Thusday"))
-                 .value("FRI", |v| v.with_description("Friday"))
-                 .build();
-    assert_eq!(Some("Days of the week"),
-               days.description.as_ref().map(|s| s.as_ref()));
-    assert_eq!(Some("Monday"),
-               days.values["MON"].description.as_ref().map(|s| s.as_ref()));
-  }
-
-  #[test]
-  fn test_object_type() {
-    let int = &Rc::new(GraphQLInt);
-    let float = &Rc::new(GraphQLFloat);
-    let string = &Rc::new(GraphQLString);
-    let boolean = &Rc::new(GraphQLBoolean);
-
-    let image = &GraphQLObjectBuilder::new("Image")
-                   .with_description("Image Type")
-                   .field("url", |f| f.type_of(string))
-                   .field("width", |f| f.type_of(int))
-                   .field("height", |f| f.type_of(int))
-                   .build();
-
-    let author = &GraphQLObjectBuilder::new("Author")
-                    .with_description("Author Type")
-                    .field("id", |f| f.type_of(string))
-                    .field("name", |f| f.type_of(string))
-                    .field("pic", |f| {
-                      f.type_of(image)
-                       .arg("width", |a| a.type_of(int))
-                       .arg("height", |a| a.type_of(int))
-                    })
-                    .field("recentArticle", |f| f.placeholder_type_of("Article"))
-                    .build();
-
-    let article = &GraphQLObjectBuilder::new("Article")
-                     .field("id", |f| f.type_of(string))
-                     .field("isPublished", |f| f.type_of(boolean))
-                     .field("author", |f| f.type_of(author))
-                     .field("title", |f| f.type_of(string))
-                     .field("body", |f| f.type_of(string))
-                     .build();
-
-    author.replace_field_placeholder_type("recentArticle", article);
-    assert_eq!("Article",
-               author.fields.borrow()["recentArticle"].typ.name());
-
-    let search_result = &GraphQLUnionBuilder::new("SearchResult")
-                           .with_description("Result will be either Author or Article")
-                           .maybe_type_of(author)
-                           .maybe_type_of(article)
-                           .build();
-  }
-
-  #[test]
-  fn test_interface_type() {
-    let int = &Rc::new(GraphQLInt);
-    let float = &Rc::new(GraphQLFloat);
-    let string = &Rc::new(GraphQLString);
-    let boolean = &Rc::new(GraphQLBoolean);
-
-    let named_entity = &GraphQLInterfaceBuilder::new("NamedEntity")
-                          .field("name", |f| f.type_of(string))
-                          .build();
-
-    let person = &GraphQLObjectBuilder::new("Person")
-                    .field("name", |f| f.type_of(string))
-                    .field("age", |f| f.type_of(int))
-                    .impl_interface(named_entity)
-                    .build();
-
-    let business = &GraphQLObjectBuilder::new("Person")
-                      .field("name", |f| f.type_of(string))
-                      .field("employeeCount", |f| f.type_of(int))
-                      .impl_interface(named_entity)
-                      .build();
-
-    assert!(person.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
-    assert!(business.interfaces.as_ref().unwrap().contains_key("NamedEntity"));
-  }
-
-  #[test]
-  fn test_input_object() {
-    let float = &Rc::new(GraphQLFloat);
-
-    let geo_point = &GraphQLInputObjectBuilder::new("GeoPoint")
-                       .field("lat", |f| f.type_of(float))
-                       .field("lon", |f| f.type_of(float))
-                       .field("alt", |f| f.type_of(float))
-                       .build();
-
-    assert_eq!(3, geo_point.fields.borrow().len());
   }
 }
