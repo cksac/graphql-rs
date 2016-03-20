@@ -3,24 +3,42 @@
 //!
 //! [1]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js
 
+use source::Source;
+
+/// Contains some character offsets that identify where the source of the AST
+/// is from.
+pub struct Location<'a> {
+  pub start: usize,
+  pub end: usize,
+  pub source: Option<&'a Source<'a>>
+}
+
 /// All AST node types implement this trait.
-trait Node {}
+pub trait Node<'a> {
+  fn location(&self) -> Option<Location<'a>>;
+}
 
 macro_rules! impl_node_for {
-  ($struct:ident) => {
-    impl Node for $struct {}
+  ($data:ident) => {
+    impl<'a> Node<'a> for $data<'a> {
+      fn location(&self) -> Option<Location<'a>> {
+        self.loc
+      }
+    }
   }
 }
 
 /// Name :: /[_A-Za-z][_0-9A-Za-z]*/
-pub struct Name {
+pub struct Name<'a> {
+  pub loc: Option<Location<'a>>,
   pub value: String
 }
 
 impl_node_for! { Name }
 
 /// IntValue :: IntegerPart
-pub struct IntValue {
+pub struct IntValue<'a> {
+  pub loc: Option<Location<'a>>,
   pub value: String
 }
 
@@ -30,7 +48,8 @@ impl_node_for! { IntValue }
 ///   - IntegerPart FractionalPart
 ///   - IntegerPart ExponentPart
 ///   - IntegerPart FractionalPart ExponentPart
-pub struct FloatValue {
+pub struct FloatValue<'a> {
+  pub loc: Option<Location<'a>>,
   pub value: String
 }
 
@@ -39,15 +58,17 @@ impl_node_for! { FloatValue }
 /// StringValue ::
 ///   - `""`
 ///   - `"` StringCharacter+ `"`
-pub struct StringValue {
+pub struct StringValue<'a> {
+  pub loc: Option<Location<'a>>,
   pub value: String
 }
 
 impl_node_for! { StringValue }
 
 /// Document : Definition+
-pub struct Document {
-  pub definitions: Vec<Definition>
+pub struct Document<'a> {
+  pub loc: Option<Location<'a>>,
+  pub definitions: Vec<Definition<'a>>
 }
 
 impl_node_for! { Document }
@@ -55,20 +76,21 @@ impl_node_for! { Document }
 /// Definition :
 ///   - OperationDefinition
 ///   - FragmentDefinition
-pub enum Definition {
-  Operation(OperationDefinition),
-  Fragment(FragmentDefinition)
+pub enum Definition<'a> {
+  Operation(OperationDefinition<'a>),
+  Fragment(FragmentDefinition<'a>)
 }
 
 /// OperationDefinition :
 ///   - SelectionSet
 ///   - OperationType Name? VariableDefinitions? Directives? SelectionSet
-pub struct OperationDefinition {
+pub struct OperationDefinition<'a> {
+  pub loc: Option<Location<'a>>,
   pub operation: OperationType,
-  pub name: Option<Name>,
-  pub variable_definitions: Option<VariableDefinitions>,
-  pub directives: Option<Directives>,
-  pub selection_set: SelectionSet
+  pub name: Option<Name<'a>>,
+  pub variable_definitions: Option<VariableDefinitions<'a>>,
+  pub directives: Option<Directives<'a>>,
+  pub selection_set: SelectionSet<'a>
 }
 
 impl_node_for! { OperationDefinition }
@@ -80,8 +102,9 @@ pub enum OperationType {
 }
 
 /// SelectionSet : { Selection+ }
-pub struct SelectionSet {
-  pub selections: Vec<Selection>
+pub struct SelectionSet<'a> {
+  pub loc: Option<Location<'a>>,
+  pub selections: Vec<Selection<'a>>
 }
 
 impl_node_for! { SelectionSet }
@@ -90,69 +113,74 @@ impl_node_for! { SelectionSet }
 ///   - Field
 ///   - FragmentSpread
 ///   - InlineFragment
-pub enum Selection {
-  Field(Field),
-  FragmentSpread(FragmentSpread),
-  InlineFragment(InlineFragment)
+pub enum Selection<'a> {
+  Field(Field<'a>),
+  FragmentSpread(FragmentSpread<'a>),
+  InlineFragment(InlineFragment<'a>)
 }
 
 /// Field : Alias? Name Arguments? Directives? SelectionSet?
-pub struct Field {
-  pub alias: Option<Alias>,
-  pub name: Name,
-  pub arguments: Option<Arguments>,
-  pub directives: Option<Directives>,
-  pub selection_set: Option<SelectionSet>
+pub struct Field<'a> {
+  pub loc: Option<Location<'a>>,
+  pub alias: Option<Alias<'a>>,
+  pub name: Name<'a>,
+  pub arguments: Option<Arguments<'a>>,
+  pub directives: Option<Directives<'a>>,
+  pub selection_set: Option<SelectionSet<'a>>
 }
 
 impl_node_for! { Field }
 
 /// Alias : Name :
-pub type Alias = Name;
+pub type Alias<'a> = Name<'a>;
 
 /// Arguments : ( Argument+ )
-pub type Arguments = Vec<Argument>;
+pub type Arguments<'a> = Vec<Argument<'a>>;
 
 /// Argument : Name : Value
-pub struct Argument {
-  pub name: Name,
-  pub value: Value
+pub struct Argument<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>,
+  pub value: Value<'a>
 }
 
 impl_node_for! { Argument }
 
 /// FragmentSpread : ... FragmentName Directives?
-pub struct FragmentSpread {
-  pub name: Name,
-  pub directives: Option<Directives>
+pub struct FragmentSpread<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>,
+  pub directives: Option<Directives<'a>>
 }
 
 impl_node_for! { FragmentSpread }
 
 /// InlineFragment : ... TypeCondition? Directives? SelectionSet
-pub struct InlineFragment {
-  pub type_condition: Option<TypeCondition>,
-  pub directives: Option<Directives>,
-  pub selection_set: SelectionSet
+pub struct InlineFragment<'a> {
+  pub loc: Option<Location<'a>>,
+  pub type_condition: Option<TypeCondition<'a>>,
+  pub directives: Option<Directives<'a>>,
+  pub selection_set: SelectionSet<'a>
 }
 
 impl_node_for! { InlineFragment }
 
 /// FragmentDefinition : fragment FragmentName TypeCondition Directives? SelectionSet
-pub struct FragmentDefinition {
-  pub name: Name,
-  pub type_condition: TypeCondition,
-  pub directives: Option<Directives>,
-  pub selection_set: SelectionSet
+pub struct FragmentDefinition<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>,
+  pub type_condition: TypeCondition<'a>,
+  pub directives: Option<Directives<'a>>,
+  pub selection_set: SelectionSet<'a>
 }
 
 impl_node_for! { FragmentDefinition }
 
 /// FragmentName : Name but not `on`
-pub type FragmentName = Name;
+pub type FragmentName<'a> = Name<'a>;
 
 /// TypeCondition : on NamedType
-pub type TypeCondition = NamedType;
+pub type TypeCondition<'a> = NamedType<'a>;
 
 /// Value[Const] :
 ///   - [~Const] Variable
@@ -163,28 +191,29 @@ pub type TypeCondition = NamedType;
 ///   - EnumValue
 ///   - ListValue[?Const]
 ///   - ObjectValue[?Const]
-pub enum Value {
-  Variable(Variable),
-  Int(IntValue),
-  Float(FloatValue),
-  String(StringValue),
-  Boolean(BooleanValue),
-  Enum(EnumValue),
-  List(ListValue),
-  Object(ObjectValue)
+pub enum Value<'a> {
+  Variable(Variable<'a>),
+  Int(IntValue<'a>),
+  Float(FloatValue<'a>),
+  String(StringValue<'a>),
+  Boolean(BooleanValue<'a>),
+  Enum(EnumValue<'a>),
+  List(ListValue<'a>),
+  Object(ObjectValue<'a>)
 }
 
 /// BooleanValue : one of `true` `false`
-pub enum BooleanValue {
-  True,
-  False
+pub struct BooleanValue<'a> {
+  pub loc: Option<Location<'a>>,
+  pub value: bool
 }
 
 impl_node_for! { BooleanValue }
 
 /// EnumValue : Name but not `true`, `false` or `null`
-pub struct EnumValue {
-  pub name: Name
+pub struct EnumValue<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>
 }
 
 impl_node_for! { EnumValue }
@@ -192,8 +221,9 @@ impl_node_for! { EnumValue }
 /// ListValue[Const] :
 ///   - [ ]
 ///   - [ Value[?Const]+ ]
-pub struct ListValue {
-  pub values: Vec<Value>
+pub struct ListValue<'a> {
+  pub loc: Option<Location<'a>>,
+  pub values: Vec<Value<'a>>
 }
 
 impl_node_for! { ListValue }
@@ -201,63 +231,69 @@ impl_node_for! { ListValue }
 /// ObjectValue[Const] :
 ///   - { }
 ///   - { ObjectField[?Const]+ }
-pub struct ObjectValue {
-  pub fields: Vec<ObjectField>
+pub struct ObjectValue<'a> {
+  pub loc: Option<Location<'a>>,
+  pub fields: Vec<ObjectField<'a>>
 }
 
 impl_node_for! { ObjectValue }
 
 /// ObjectField[Const] : Name : Value[?Const]
-pub struct ObjectField {
-  pub name: Name,
-  pub value: Value
+pub struct ObjectField<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>,
+  pub value: Value<'a>
 }
 
 impl_node_for! { ObjectField }
 
 /// VariableDefinitions : ( VariableDefinition+ )
-pub type VariableDefinitions = Vec<VariableDefinition>;
+pub type VariableDefinitions<'a> = Vec<VariableDefinition<'a>>;
 
 /// VariableDefinition : Variable : Type DefaultValue?
-pub struct VariableDefinition {
-  pub variable: Variable,
-  pub type_: Type,
-  pub default_value: Option<DefaultValue>
+pub struct VariableDefinition<'a> {
+  pub loc: Option<Location<'a>>,
+  pub variable: Variable<'a>,
+  pub type_: Type<'a>,
+  pub default_value: Option<DefaultValue<'a>>
 }
 
 impl_node_for! { VariableDefinition }
 
 /// Variable : $ Name
-pub struct Variable {
-  pub name: Name
+pub struct Variable<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>
 }
 
 impl_node_for! { Variable }
 
 /// DefaultValue : = Value[Const]
-pub type DefaultValue = Value;
+pub type DefaultValue<'a> = Value<'a>;
 
 /// Type :
 ///   - NamedType
 ///   - ListType
 ///   - NonNullType
-pub enum Type {
-  Named(NamedType),
-  List(ListType),
-  NonNullNamed(NonNullNamedType),
-  NonNullList(NonNullListType)
+pub enum Type<'a> {
+  Named(NamedType<'a>),
+  List(Box<ListType<'a>>),
+  NonNullNamed(Box<NonNullNamedType<'a>>),
+  NonNullList(Box<NonNullListType<'a>>)
 }
 
 /// NamedType : Name
-pub struct NamedType {
-  pub name: Name
+pub struct NamedType<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>
 }
 
 impl_node_for! { NamedType }
 
 /// ListType : [ Type ]
-pub struct ListType {
-  pub type_: Type
+pub struct ListType<'a> {
+  pub loc: Option<Location<'a>>,
+  pub type_: Type<'a>
 }
 
 impl_node_for! { ListType }
@@ -272,26 +308,29 @@ impl_node_for! { ListType }
 ///
 /// [1]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js#L49
 /// [2]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js#L254
-pub struct NonNullNamedType {
-  pub type_: NamedType
+pub struct NonNullNamedType<'a> {
+  pub loc: Option<Location<'a>>,
+  pub type_: NamedType<'a>
 }
 
 impl_node_for! { NonNullNamedType }
 
 /// See documentation for the `NonNullNamedType` struct.
-pub struct NonNullListType {
-  pub type_: ListType
+pub struct NonNullListType<'a> {
+  pub loc: Option<Location<'a>>,
+  pub type_: ListType<'a>
 }
 
 impl_node_for! { NonNullListType }
 
 /// Directives : Directive+
-pub type Directives = Vec<Directive>;
+pub type Directives<'a> = Vec<Directive<'a>>;
 
 /// Directive : @ Name Arguments?
-pub struct Directive {
-  pub name: Name,
-  pub arguments: Option<Arguments>
+pub struct Directive<'a> {
+  pub loc: Option<Location<'a>>,
+  pub name: Name<'a>,
+  pub arguments: Option<Arguments<'a>>
 }
 
 impl_node_for! { Directive }
