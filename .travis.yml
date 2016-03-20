@@ -1,0 +1,14 @@
+sudo: false
+language: rust
+rust:
+  - stable
+os:
+  - linux
+  - osx
+cache:
+  directories:
+    - $HOME/.cargo
+script:
+  - "cargo build && cargo test"
+notifications:
+  email: false
