@@ -1,46 +1,37 @@
-use std::io;
-use std::io::prelude::*;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-
 static DEFAULT_SOURCE_NAME: &'static str = "GraphQL";
 
 #[derive(Debug)]
-pub struct Source {
-  pub name: String,
-  pub body: String,
+pub struct Source<'a> {
+  pub name: &'a str,
+  pub body: &'a str,
 }
 
-impl Source {
-  pub fn new(body: String) -> Self {
+impl<'a> Source<'a> {
+  pub fn new(body: &'a str) -> Self {
     Source {
-      name: DEFAULT_SOURCE_NAME.to_owned(),
+      name: DEFAULT_SOURCE_NAME,
       body: body,
     }
   }
 
-  pub fn with_name(name: String, body: String) -> Self {
-    Source {
-      name: name,
-      body: body,
-    }
+  pub fn name(mut self, name: &'a str) -> Self {
+    self.name = name;
+    self
   }
+}
 
-  pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
-    let mut p = PathBuf::new();
-    p.push(path);
-    let mut f = try!(File::open(p.clone()));
-    let mut s = String::new();
-    try!(f.read_to_string(&mut s));
-    Ok(Source::with_name(Self::get_file_name(p), s))
-  }
+use std::io::Error;
+use std::path::Path;
 
-  fn get_file_name(path: PathBuf) -> String {
-    if let Some(n) = path.as_path().file_name() {
-      if let Ok(name) = n.to_os_string().into_string() {
-        return name;
-      }
-    }
-    DEFAULT_SOURCE_NAME.to_owned()
-  }
+pub fn from_file<'a>(path: &'a Path, buf: &'a mut String) -> Result<Source<'a>, Error> {
+  use std::fs::File;
+  use std::io::Read;
+  use std::ffi::OsStr;
+
+  let mut f = try!(File::open(path.clone()));
+  try!(f.read_to_string(buf));
+  Ok(Source::new(buf.as_str()).name(path
+    .file_name()
+    .and_then(OsStr::to_str)
+    .unwrap_or(DEFAULT_SOURCE_NAME)))
 }
