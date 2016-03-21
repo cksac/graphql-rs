@@ -4,8 +4,8 @@ use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
 pub enum Token<'a> {
-  Eof(usize),
-  Punctuator(Punctuator, usize),
+  Eof,
+  Punctuator(Punctuator, usize, usize),
   Name(&'a str, usize, usize),
   IntValue(&'a str, usize, usize),
   FloatValue(&'a str, usize, usize),
@@ -18,7 +18,7 @@ pub enum Punctuator {
   Dollar,
   LeftParen,
   RightParen,
-  Spread(usize),
+  Spread,
   Colon,
   Equals,
   At,
@@ -242,7 +242,7 @@ impl<'a> Iterator for Lexer<'a> {
 
     if !self.is_eof && take_eof!(self) {
       self.is_eof = true;
-      return Some(Ok(Token::Eof(self.hi)));
+      return Some(Ok(Token::Eof));
     }
     if self.is_eof {
       return None;
@@ -256,55 +256,55 @@ impl<'a> Iterator for Lexer<'a> {
       item = match c {
         '!' => {
           self.iter.next();
-          Some(Ok(Punctuator(Bang, self.lo)))
+          Some(Ok(Punctuator(Bang, self.lo, self.hi)))
         }
         '$' => {
           self.iter.next();
-          Some(Ok(Punctuator(Dollar, self.lo)))
+          Some(Ok(Punctuator(Dollar, self.lo, self.hi)))
         }
         '(' => {
           self.iter.next();
-          Some(Ok(Punctuator(LeftParen, self.lo)))
+          Some(Ok(Punctuator(LeftParen, self.lo, self.hi)))
         }
         ')' => {
           self.iter.next();
-          Some(Ok(Punctuator(RightParen, self.lo)))
+          Some(Ok(Punctuator(RightParen, self.lo, self.hi)))
         }
         ':' => {
           self.iter.next();
-          Some(Ok(Punctuator(Colon, self.lo)))
+          Some(Ok(Punctuator(Colon, self.lo, self.hi)))
         }
         '=' => {
           self.iter.next();
-          Some(Ok(Punctuator(Equals, self.lo)))
+          Some(Ok(Punctuator(Equals, self.lo, self.hi)))
         }
         '@' => {
           self.iter.next();
-          Some(Ok(Punctuator(At, self.lo)))
+          Some(Ok(Punctuator(At, self.lo, self.hi)))
         }
         '[' => {
           self.iter.next();
-          Some(Ok(Punctuator(LeftBracket, self.lo)))
+          Some(Ok(Punctuator(LeftBracket, self.lo, self.hi)))
         }
         ']' => {
           self.iter.next();
-          Some(Ok(Punctuator(RightBracket, self.lo)))
+          Some(Ok(Punctuator(RightBracket, self.lo, self.hi)))
         }
         '{' => {
           self.iter.next();
-          Some(Ok(Punctuator(LeftBrace, self.lo)))
+          Some(Ok(Punctuator(LeftBrace, self.lo, self.hi)))
         }
         '}' => {
           self.iter.next();
-          Some(Ok(Punctuator(RightBrace, self.lo)))
+          Some(Ok(Punctuator(RightBrace, self.lo, self.hi)))
         }
         '|' => {
           self.iter.next();
-          Some(Ok(Punctuator(Pipe, self.lo)))
+          Some(Ok(Punctuator(Pipe, self.lo, self.hi)))
         }
         '.' => {
           if scan_spread(self) {
-            Some(Ok(Punctuator(Spread(self.lo), self.hi)))
+            Some(Ok(Punctuator(Spread, self.lo, self.hi)))
           } else {
             Some(Err("Unexpected character."))
           }
@@ -374,7 +374,7 @@ mod tests {
     test_next_token(&mut lexer, StringValue("simple", 23, 29));
     test_next_token(&mut lexer, StringValue("  white space   ", 32, 48));
     test_next_token(&mut lexer, Name("other_name", 50, 60));
-    test_next_token(&mut lexer, Eof(60));
+    test_next_token(&mut lexer, Eof);
     assert_eq!(None, lexer.next());
   }
 
@@ -399,27 +399,27 @@ mod tests {
     test_next_token(&mut lexer, FloatValue("0.00e-002", 64, 73));
     test_next_token(&mut lexer, FloatValue("-0.00E+002", 74, 84));
     test_next_token(&mut lexer, FloatValue("9.1E+0", 85, 91));
-    test_next_token(&mut lexer, Eof(91));
+    test_next_token(&mut lexer, Eof);
     assert_eq!(None, lexer.next());
   }
 
   #[test]
   fn test_symbol() {
     let mut lexer = Lexer::new("@ !  :$ =    [  {   (|] } )      ...");
-    test_next_token(&mut lexer, Punctuator(At, 0));
-    test_next_token(&mut lexer, Punctuator(Bang, 2));
-    test_next_token(&mut lexer, Punctuator(Colon, 5));
-    test_next_token(&mut lexer, Punctuator(Dollar, 6));
-    test_next_token(&mut lexer, Punctuator(Equals, 8));
-    test_next_token(&mut lexer, Punctuator(LeftBracket, 13));
-    test_next_token(&mut lexer, Punctuator(LeftBrace, 16));
-    test_next_token(&mut lexer, Punctuator(LeftParen, 20));
-    test_next_token(&mut lexer, Punctuator(Pipe, 21));
-    test_next_token(&mut lexer, Punctuator(RightBracket, 22));
-    test_next_token(&mut lexer, Punctuator(RightBrace, 24));
-    test_next_token(&mut lexer, Punctuator(RightParen, 26));
-    test_next_token(&mut lexer, Punctuator(Spread(33), 35));
-    test_next_token(&mut lexer, Eof(36));
+    test_next_token(&mut lexer, Punctuator(At, 0, 0));
+    test_next_token(&mut lexer, Punctuator(Bang, 2, 2));
+    test_next_token(&mut lexer, Punctuator(Colon, 5, 5));
+    test_next_token(&mut lexer, Punctuator(Dollar, 6, 6));
+    test_next_token(&mut lexer, Punctuator(Equals, 8, 8));
+    test_next_token(&mut lexer, Punctuator(LeftBracket, 13, 13));
+    test_next_token(&mut lexer, Punctuator(LeftBrace, 16, 16));
+    test_next_token(&mut lexer, Punctuator(LeftParen, 20, 20));
+    test_next_token(&mut lexer, Punctuator(Pipe, 21, 21));
+    test_next_token(&mut lexer, Punctuator(RightBracket, 22, 22));
+    test_next_token(&mut lexer, Punctuator(RightBrace, 24, 24));
+    test_next_token(&mut lexer, Punctuator(RightParen, 26, 26));
+    test_next_token(&mut lexer, Punctuator(Spread, 33, 35));
+    test_next_token(&mut lexer, Eof);
     assert_eq!(None, lexer.next());
   }
 }
