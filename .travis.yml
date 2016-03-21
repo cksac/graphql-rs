@@ -10,6 +10,7 @@ cache:
   directories:
     - $HOME/.cargo
 script:
-  - "cargo build && cargo test"
+  - cd graphql && cargo test
+  - cd graphql-language && cargo test
 notifications:
   email: false

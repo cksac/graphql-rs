@@ -1,7 +1,8 @@
-extern crate graphql_parser;
-pub use graphql_parser::*;
+extern crate graphql_language;
 
 pub mod types;
+
+pub use graphql_language::*;
 
 #[cfg(test)]
 mod tests {
