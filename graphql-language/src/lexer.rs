@@ -252,7 +252,7 @@ impl<'a> Iterator for Lexer<'a> {
     let mut item = None;
     if let Some(&(p, c)) = self.iter.peek() {
       self.lo = p;
-      self.hi = p;
+      self.hi = p + 1;
       item = match c {
         '!' => {
           self.iter.next();
@@ -304,7 +304,7 @@ impl<'a> Iterator for Lexer<'a> {
         }
         '.' => {
           if scan_spread(self) {
-            Some(Ok(Punctuator(Spread, self.lo, self.hi)))
+            Some(Ok(Punctuator(Spread, self.lo, self.hi + 1)))
           } else {
             Some(Err("Unexpected character."))
           }
@@ -406,19 +406,19 @@ mod tests {
   #[test]
   fn test_symbol() {
     let mut lexer = Lexer::new("@ !  :$ =    [  {   (|] } )      ...");
-    test_next_token(&mut lexer, Punctuator(At, 0, 0));
-    test_next_token(&mut lexer, Punctuator(Bang, 2, 2));
-    test_next_token(&mut lexer, Punctuator(Colon, 5, 5));
-    test_next_token(&mut lexer, Punctuator(Dollar, 6, 6));
-    test_next_token(&mut lexer, Punctuator(Equals, 8, 8));
-    test_next_token(&mut lexer, Punctuator(LeftBracket, 13, 13));
-    test_next_token(&mut lexer, Punctuator(LeftBrace, 16, 16));
-    test_next_token(&mut lexer, Punctuator(LeftParen, 20, 20));
-    test_next_token(&mut lexer, Punctuator(Pipe, 21, 21));
-    test_next_token(&mut lexer, Punctuator(RightBracket, 22, 22));
-    test_next_token(&mut lexer, Punctuator(RightBrace, 24, 24));
-    test_next_token(&mut lexer, Punctuator(RightParen, 26, 26));
-    test_next_token(&mut lexer, Punctuator(Spread, 33, 35));
+    test_next_token(&mut lexer, Punctuator(At, 0, 1));
+    test_next_token(&mut lexer, Punctuator(Bang, 2, 3));
+    test_next_token(&mut lexer, Punctuator(Colon, 5, 6));
+    test_next_token(&mut lexer, Punctuator(Dollar, 6, 7));
+    test_next_token(&mut lexer, Punctuator(Equals, 8, 9));
+    test_next_token(&mut lexer, Punctuator(LeftBracket, 13, 14));
+    test_next_token(&mut lexer, Punctuator(LeftBrace, 16, 17));
+    test_next_token(&mut lexer, Punctuator(LeftParen, 20, 21));
+    test_next_token(&mut lexer, Punctuator(Pipe, 21, 22));
+    test_next_token(&mut lexer, Punctuator(RightBracket, 22, 23));
+    test_next_token(&mut lexer, Punctuator(RightBrace, 24, 25));
+    test_next_token(&mut lexer, Punctuator(RightParen, 26, 27));
+    test_next_token(&mut lexer, Punctuator(Spread, 33, 36));
     test_next_token(&mut lexer, Eof);
     assert_eq!(None, lexer.next());
   }
