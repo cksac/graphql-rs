@@ -155,6 +155,7 @@ fn scan_spread(lexer: &mut Lexer) -> bool {
   if take!(lexer, '.') {
     if take!(lexer, '.') {
       if take!(lexer, '.') {
+        lexer.hi += 1;
         return true;
       }
     }
@@ -172,7 +173,7 @@ fn scan_string(lexer: &mut Lexer) -> (bool, bool) {
   let mut is_bad_escape = false;
   let mut is_terminated = false;
   if take!(lexer, '"') {
-    lexer.lo = lexer.lo + 1;
+    lexer.lo += 1;
   }
   loop {
     if take!(lexer, '\\') {
@@ -304,7 +305,7 @@ impl<'a> Iterator for Lexer<'a> {
         }
         '.' => {
           if scan_spread(self) {
-            Some(Ok(Punctuator(Spread, self.lo, self.hi + 1)))
+            Some(Ok(Punctuator(Spread, self.lo, self.hi)))
           } else {
             Some(Err("Unexpected character."))
           }
