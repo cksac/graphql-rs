@@ -15,14 +15,14 @@ pub struct Location<'a> {
 
 /// All AST node types implement this trait.
 pub trait Node<'a> {
-  fn location(&self) -> Option<Location<'a>>;
+  fn location(&self) -> Option<&Location<'a>>;
 }
 
 macro_rules! impl_node_for {
   ($data:ident) => {
     impl<'a> Node<'a> for $data<'a> {
-      fn location(&self) -> Option<Location<'a>> {
-        self.loc
+      fn location(&self) -> Option<&Location<'a>> {
+        self.loc.as_ref()
       }
     }
   }
