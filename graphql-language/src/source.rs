@@ -1,6 +1,6 @@
 static DEFAULT_SOURCE_NAME: &'static str = "GraphQL";
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Source<'a> {
   pub name: &'a str,
   pub body: &'a str,
