@@ -17,15 +17,12 @@ pub fn parse_file<'a>(file: &'a Path, buf: &'a mut String) -> Document<'a> {
 }
 
 fn parse_source<'a>(src: Source<'a>) -> Document<'a> {
-  let mut res = Document {
-    source: src,
-    definitions: Vec::new(),
-  };
+  let mut res = Document::new(src);
 
-  let parser = parser::Parser::new(res.source);
+  let parser = parser::Parser::new(&res.source);
 
   for def in parser {
-    res.definitions.push(def.unwrap());// FIXME
+    res.add_definition(def.unwrap());// FIXME
   }
 
   res

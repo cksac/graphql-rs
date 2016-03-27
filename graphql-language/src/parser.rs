@@ -1,65 +1,13 @@
 #![allow(dead_code, unused_variables)]
-use ast::*;
+use ast;
 use lexer::Punctuator::*;
-use lexer::Token::{
-  Eof,
-  Punctuator,
-  Name as TokenName,
-  IntValue as TokenInt,
-  FloatValue as TokenFloat,
-  StringValue as TokenString,
-};
+use lexer::Token::*;
 use lexer::{Lexer, Token};
 use source::Source;
 use std::iter::Peekable;
+use std::result;
 
-pub type Res<'a, T> = Result<T, &'a str>;
-pub type DRes<'a, T> = Res<'a, (T, usize)>;
-
-pub struct Parser<'a> {
-  lexer: Peekable<Lexer<'a>>,
-  source: Source<'a>,
-}
-
-impl<'a> Parser<'a> {
-  pub fn new(src: Source<'a>) -> Self {
-    Parser {
-      lexer: Lexer::new(src.body).peekable(),
-      source: src,
-    }
-  }
-
-  fn loc(&self, lo: usize, hi: usize) -> Location<'a> {
-    Location {
-      start: lo,
-      end: hi,
-      source: self.source,
-    }
-  }
-}
-
-impl<'a> Iterator for Parser<'a> {
-  type Item = Res<'a, Definition<'a>>;
-  fn next(&mut self) -> Option<Res<'a, Definition<'a>>> {
-    if self.lexer.peek().is_some() {
-      Some(parse_definition(self))
-    } else {
-      None
-    }
-  }
-}
-
-macro_rules! on_do {
- ($parser: ident, $($p: pat => $b: block)+) => {
-   loop {
-     match next!($parser) {
-       $(
-         $p => $b
-       )+
-     }
-   }
- }
-}
+pub type Result<T> = result::Result<T, &'static str>;
 
 macro_rules! peek {
   ($parser: ident, $($p: pat)|*) => ({
@@ -79,279 +27,327 @@ macro_rules! peek {
 }
 
 macro_rules! next {
-  ($parser: ident) => {$parser.lexer.next().unwrap().unwrap()}
-}
-
-fn parse_definition<'a>(parser: &mut Parser<'a>) -> Res<'a, Definition<'a>> {
-  let token = next!(parser);
-
-  match token {
-    Punctuator(LeftBrace, lo, _) => parse_short_operation(parser, lo),
-    TokenName(name, lo, hi) => {
-      match name {
-        "query" => parse_operation_def(parser, OperationType::Query, name, lo, hi),
-        "mutation" => parse_operation_def(parser, OperationType::Mutation, name, lo, hi),
-        "fragment" => parse_fragment_def(parser, name, lo, hi),
-        _ => Err("Unkown Op"),
-      }
-    },
-    _ => Err("Unexpected Token"),
-  }
-}
-
-fn parse_short_operation<'a>(parser: &mut Parser<'a>, lo: usize) -> Res<'a, Definition<'a>> {
-  let (selections, hi) = try!(parse_selection_set(parser, lo));
-
-  Ok(Definition::Operation(
-    OperationDefinition {
-      loc: parser.loc(lo, hi),
-      operation: OperationType::Query,
-      name: None,
-      variable_definitions: None,
-      directives: None,
-      selection_set: selections,
+  ($parser: ident) => ({
+    let t = $parser.lexer.next().unwrap().unwrap();
+    match t {
+      Eof => {
+        return Err("END OF FILE!");
+      },
+      Punctuator(_, _, hi) |
+      Name(_, _, hi)       |
+      IntValue(_, _, hi)   |
+      StringValue(_, _, hi)|
+      FloatValue(_, _, hi) => {
+        $parser.prev = $parser.curr;
+        $parser.curr = hi;
+      },
     }
-  ))
+
+    t
+  })
 }
 
-fn parse_field<'a>(parser: &mut Parser<'a>, name: &'a str, lo: usize, mut hi: usize) -> DRes<'a, Selection<'a>> {
-  let (alias, name) = if peek!(parser, Punctuator(Colon, _, _)) {
-      let a = try!(parse_name(parser, name, lo, hi));
-      next!(parser);
-      (Some(a), match next!(parser) {
-        TokenName(n, l, h) => {
-          hi = h;
-          try!(parse_name(parser, n, l, h))
+pub struct Parser<'a> {
+  lexer: Peekable<Lexer<'a>>,
+  source: &'a Source<'a>,
+  prev: usize,
+  curr: usize,
+}
+
+impl<'a> Parser<'a> {
+  pub fn new(src: &'a Source<'a>) -> Self {
+    Parser {
+      lexer: Lexer::new(src.body).peekable(),
+      source: src,
+      prev: 0,
+      curr: 0,
+    }
+  }
+
+  fn loc(&self, lo: usize) -> Option<ast::Location<'a>> {
+    Some(ast::Location {
+      start: lo,
+      end: self.curr,
+      source: self.source,
+    })
+  }
+
+  fn parse_definition(&mut self) -> Result<ast::Definition<'a>> {
+    match next!(self) {
+      Punctuator(LeftBrace, lo, _) => self.parse_short_operation(lo),
+      Name(name, lo, _) => {
+        match name {
+          "query" => self.parse_operation_def(ast::OperationType::Query, name, lo),
+          "mutation" => self.parse_operation_def(ast::OperationType::Mutation, name, lo),
+          "fragment" => self.parse_fragment_def(name, lo),
+          _ => Err("Unkown Op"),
+        }
+      },
+      _ => Err("Unexpected Token"),
+    }
+  }
+
+  fn parse_short_operation(&mut self, lo: usize) -> Result<ast::Definition<'a>> {
+    let selections = try!(self.parse_selection_set(lo));
+
+    Ok(ast::Definition::Operation(
+      ast::OperationDefinition {
+        loc: self.loc(lo),
+        operation: ast::OperationType::Query,
+        name: None,
+        variable_definitions: None,
+        directives: None,
+        selection_set: selections,
+      }
+    ))
+  }
+
+  fn parse_field(&mut self, name: &'a str, lo: usize) -> Result<ast::Selection<'a>> {
+    let (alias, name) = if peek!(self, Punctuator(Colon, _, _)) {
+      let a = try!(self.parse_name(name, lo));
+      next!(self);
+      (Some(a), match next!(self) {
+        Name(n, l, _) => {
+          try!(self.parse_name(n, l))
         },
         _ => {
           return Err("Expected Name after colon");
         },
       })
-  } else {
-    (None, try!(parse_name(parser, name, lo, hi)))
-  };
+    } else {
+      (None, try!(self.parse_name(name, lo)))
+    };
 
-  let (args, hi) = try!(parse_arguments(parser, hi));
-  let (dirs, hi) = try!(parse_directives(parser, hi));
-  let (selections, hi) = try!(parse_selection_set(parser, hi));
+    let args = try!(self.parse_arguments(hi));
+    let dirs = try!(self.parse_directives(hi));
+    let selections = try!(self.parse_selection_set(hi));
 
-  Ok((Selection::Field(Field {
-    loc: parser.loc(lo, hi),
-    alias: alias,
-    name: name,
-    arguments: args,
-    directives: dirs,
-    selection_set: Some(selections),
-  }), hi))
-}
-
-fn parse_name<'a>(parser: &mut Parser<'a>, name: &'a str, lo: usize, hi: usize) -> Res<'a, Name<'a>> {
-  Ok(Name {
-    loc: parser.loc(lo, hi),
-    value: name,
-  })
-}
-
-fn parse_selection_set<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, SelectionSet<'a>> {
-  let mut hi = lo;
-  let mut selections = Vec::new();
-
-  if peek!(parser, Punctuator(LeftBrace, _, _)) {
-    next!(parser);
-    on_do! {
-      parser,
-      TokenName(name, s, end) => {
-        let (select, e) = try!(parse_field(parser, name, s, end));
-        hi = e;
-        selections.push(select);
-      }
-      Punctuator(Spread, lo, _) => {
-        let (select, e) = try!(parse_fragment(parser, lo));
-        hi = e;
-        selections.push(select);
-      }
-      Punctuator(RightBrace, _, end) => {
-        hi = end;
-        break;
-      }
-      _ => {
-        return Err("Unexpected Token");
-      }
-    }
+    Ok(ast::Selection::Field(ast::Field {
+      loc: self.loc(lo),
+      alias: alias,
+      name: name,
+      arguments: args,
+      directives: dirs,
+      selection_set: Some(selections),
+    }))
   }
 
-  Ok((SelectionSet {
-    selections: selections,
-    loc: parser.loc(lo, hi),
-  }, hi))
-}
-
-fn parse_fragment<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, Selection<'a>> {
-  let mut end = lo;
-  //if peek!(parser, TokenName("on", _, _)) { FIXME Parse Fragments!
-  //  next!(parser);
-  //
-  //} else {
-    let name = match next!(parser) {
-      TokenName(name, s, hi) => {
-        end = hi;
-        try!(parse_name(parser, name, s, hi))
-      },
-      _ => {
-        return Err("Expected Fragment Name");
-      }
-    };
-    let (dirs, hi) = parse_directives(parser, end);
-    Selection::FragmentSpread(FragmentSpread {
-      loc: parser.loc(lo, hi),
-      name: name,
-      directives: dirs,
+  fn parse_name(&mut self, name: &'a str, lo: usize) -> Result<ast::Name<'a>> {
+    Ok(ast::Name {
+      loc: self.loc(lo),
+      value: name,
     })
-  //}
-}
+  }
 
-fn parse_arguments<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, Option<Arguments<'a>>> {
-  let mut args = Vec::new();
-  let mut end = lo;
+  fn parse_selection_set(&mut self, lo: usize) -> Result<ast::SelectionSet<'a>> {
+    let mut hi = lo;
+    let mut selections = Vec::new();
 
-  if peek!(parser, Punctuator(LeftParen, _, _)) {
-    next!(parser);
-    on_do!{
-      parser,
-      TokenName(name, lo, hi) => {
-        let name = try!(parse_name(parser, name, lo, hi));
-        match next!(parser) {
-          Punctuator(Colon, _, _) => {
-            let (value, hi) = try!(parse_value(parser, false));
-            args.push(Argument {
-              loc: parser.loc(lo, hi),
-              name: name,
-              value: value,
-            })
+    if peek!(self, Punctuator(LeftBrace, _, _)) {
+      next!(self); // Required to skip the brace.
+      loop {
+        match next!(self) {
+          Name(name, s, end) => {
+            let select = try!(self.parse_field(name, s));
+            selections.push(select);
+          },
+          Punctuator(Spread, lo, _) => {
+            let select = try!(self.parse_fragment(lo));
+            selections.push(select);
+          },
+          Punctuator(RightBrace, _, end) => {
+            break;
           },
           _ => {
-            return Err("Expected Value after colon");
+            return Err("Unexpected Token");
           },
         }
       }
-      Punctuator(RightParen, _, hi) => {
-        end = hi;
-        break;
-      }
-      _ => {}
     }
+
+    Ok(ast::SelectionSet {
+      selections: selections,
+      loc: self.loc(lo),
+    })
   }
 
-  Ok((some(args), end))
-}
-
-fn parse_value<'a>(parser: &mut Parser<'a>, is_const: bool) -> DRes<'a, Value<'a>> {
-  match next!(parser) {
-    Punctuator(LeftBracket, lo, _) => parse_array(parser, is_const, lo),
-    Punctuator(LeftBrace, lo, _) => parse_object(parser, is_const, lo),
-    Punctuator(Dollar, lo, _) => {
-      if is_const {
-        return Err("No value?");
-      } else {
-        parse_variable(parser, lo)
-      }
-    },
-    TokenName(val, lo, hi) => {
-      match val {
-        "true" | "false" => {
-          Value::Boolean(BooleanValue {
-            loc: parser.loc(lo, hi),
-            value: val.parse().unwrap(),
-          })
-        },
-        e if e != "null" => {
-          Value::Enum(EnumValue {
-            loc: parser.loc(lo, hi),
-            name: parse_name(val, lo, hi).unwrap(),
-          })
+  fn parse_fragment(&mut self, lo: usize) -> Result<ast::Selection<'a>> {
+    let mut end = lo;
+    //if peek!(self, TokenName("on", _, _)) { FIXME Parse Fragments!
+    //  next!(self);
+    //
+    //} else {
+      let name = match next!(self) {
+        Name(name, s, hi) => {
+          try!(self.parse_name(name, s))
         },
         _ => {
-          return Err("Unexpected name");
+          return Err("Expected Fragment Name");
+        }
+      };
+      let dirs = try!(self.parse_directives(end));
+      Ok(ast::Selection::FragmentSpread(ast::FragmentSpread {
+        loc: self.loc(lo),
+        name: name,
+        directives: dirs,
+      }))
+    //}
+  }
+
+  fn parse_arguments(&mut self, lo: usize) -> Result<Option<ast::Arguments<'a>>> {
+    let mut args = Vec::new();
+    let mut end = lo;
+
+    if peek!(self, Punctuator(LeftParen, _, _)) {
+      next!(self);
+      loop {
+        match next!(self) {
+          Name(name, lo, hi) => {
+            let name = try!(self.parse_name(name, lo));
+            match next!(self) {
+              Punctuator(Colon, _, _) => {
+                let value = try!(self.parse_value(false));
+                args.push(ast::Argument {
+                  loc: self.loc(lo),
+                  name: name,
+                  value: value,
+                })
+              },
+              _ => {
+                return Err("Expected Value after colon");
+              },
+            }
+          },
+          Punctuator(RightParen, _, _) => {
+            break;
+          },
+          _ => {},
         }
       }
-    },
-    TokenInt(val, lo, hi) => {
-      Value::Int(IntValue {
-        loc: parser.loc(lo, hi),
-        value: val,
-      })
-    },
-    TokenFloat(val, lo, hi) => {
-      Value::Float(FloatValue {
-        loc: parser.loc(lo, hi),
-        value: val,
-      })
-    },
-    TokenString(val, lo, hi) => {
-      Value::String(StringValue {
-        loc: parser.loc(lo, hi),
-        value: val,
-      })
-    },
-    _ => {
-      return Err("Unexpected");
     }
+
+    Ok(some(args))
+  }
+
+  fn parse_value(&mut self, is_const: bool) -> Result<ast::Value<'a>> {
+    match next!(self) {
+      Punctuator(LeftBracket, lo, _) => self.parse_array(is_const, lo),
+      Punctuator(LeftBrace, lo, _) => self.parse_object(is_const, lo),
+      Punctuator(Dollar, lo, _) => {
+        if is_const {
+          Err("No value?")
+        } else {
+          self.parse_variable(lo)
+        }
+      },
+      Name(val, lo, hi) => {
+        match val {
+          "true" | "false" => {
+            Ok(ast::Value::Boolean(ast::BooleanValue {
+              loc: self.loc(lo),
+              value: val.parse().unwrap(),
+            }))
+          },
+          e if e != "null" => {
+            Ok(ast::Value::Enum(ast::EnumValue {
+              loc: self.loc(lo),
+              name: try!(self.parse_name(val, lo)),
+            }))
+          },
+          _ => Err("Unexpected null"),
+        }
+      },
+      IntValue(val, lo, hi) => {
+        Ok(ast::Value::Int(ast::IntValue {
+          loc: self.loc(lo),
+          value: val,
+        }))
+      },
+      FloatValue(val, lo, hi) => {
+        Ok(ast::Value::Float(ast::FloatValue {
+          loc: self.loc(lo),
+          value: val,
+        }))
+      },
+      StringValue(val, lo, hi) => {
+        Ok(ast::Value::String(ast::StringValue {
+          loc: self.loc(lo),
+          value: val,
+        }))
+      },
+      _ => Err("Unexpected"),
+    }
+  }
+
+  fn parse_array(&mut self, is_const: bool, lo: usize) -> Result<ast::Value<'a>> {
+    unimplemented!()
+  }
+
+  fn parse_object(&mut self, is_const: bool, lo: usize) -> Result<ast::Value<'a>> {
+    unimplemented!()
+  }
+
+  fn parse_variable(&mut self, lo: usize) -> Result<ast::Value<'a>> {
+    unimplemented!()
+  }
+
+  fn parse_operation_def(&mut self, op: ast::OperationType, name: &'a str, lo: usize) -> Result<ast::Definition<'a>> {
+    let name = try!(self.parse_name(name, lo));
+    let vars = try!(self.parse_variables(hi));
+    let dirs = try!(self.parse_directives(hi));
+    let selections = try!(self.parse_selection_set(hi));
+
+    Ok(ast::Definition::Operation(
+      ast::OperationDefinition {
+        loc: self.loc(lo),
+        operation: op,
+        name: Some(name),
+        variable_definitions: vars,
+        directives: dirs,
+        selection_set: selections,
+      }
+    ))
+  }
+
+  fn parse_variables(&mut self, lo: usize) -> Result<Option<ast::VariableDefinitions<'a>>> {
+    unimplemented!()
+  }
+
+  fn parse_directives(&mut self, lo: usize) -> Result<Option<ast::Directives<'a>>> {
+    unimplemented!()
+  }
+
+  fn parse_fragment_def(&mut self, name: &'a str, lo: usize) -> Result<ast::Definition<'a>> {
+    let name = try!(self.parse_name(name, lo));
+    let tc = try!(self.parse_type_condition(hi));
+    let dirs = try!(self.parse_directives(hi));
+    let selections = try!(self.parse_selection_set(hi));
+
+    Ok(ast::Definition::Fragment(
+      ast::FragmentDefinition {
+        loc: self.loc(lo),
+        name: name,
+        type_condition: tc,
+        directives: dirs,
+        selection_set: selections,
+      }
+    ))
+  }
+
+  fn parse_type_condition(&mut self, lo: usize) -> Result<ast::TypeCondition<'a>> {
+    unimplemented!()
   }
 }
 
-fn parse_array<'a>(parser: &mut Parser<'a>, is_const: bool, lo: usize) -> DRes<'a, Value<'a>> {
-  unimplemented!()
-}
-
-fn parse_object<'a>(parser: &mut Parser<'a>, is_const: bool, lo: usize) -> DRes<'a, Value<'a>> {
-  unimplemented!()
-}
-
-fn parse_operation_def<'a>(parser: &mut Parser<'a>, op: OperationType, name: &'a str, lo: usize, hi: usize) -> Res<'a, Definition<'a>> {
-  let name = try!(parse_name(parser, name, lo, hi));
-  let (vars, hi) = try!(parse_variables(parser, hi));
-  let (dirs, hi) = try!(parse_directives(parser, hi));
-  let (selections, hi) = try!(parse_selection_set(parser, hi));
-
-  Ok(Definition::Operation(
-    OperationDefinition {
-      loc: parser.loc(lo, hi),
-      operation: op,
-      name: Some(name),
-      variable_definitions: vars,
-      directives: dirs,
-      selection_set: selections,
+impl<'a> Iterator for Parser<'a> {
+  type Item = Result<ast::Definition<'a>>;
+  fn next(&mut self) -> Option<Result<ast::Definition<'a>>> {
+    if self.lexer.peek().is_some() {
+      Some(self.parse_definition())
+    } else {
+      None
     }
-  ))
-}
-
-fn parse_variables<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, Option<VariableDefinitions<'a>>> {
-  unimplemented!()
-}
-
-fn parse_directives<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, Option<Directives<'a>>> {
-  unimplemented!()
-}
-
-fn parse_fragment_def<'a>(parser: &mut Parser<'a>, name: &'a str, lo: usize, hi: usize) -> Res<'a, Definition<'a>> {
-  let name = try!(parse_name(parser, name, lo, hi));
-  let (tc, hi) = try!(parse_type_condition(parser, hi));
-  let (dirs, hi) = try!(parse_directives(parser, hi));
-  let (selections, hi) = try!(parse_selection_set(parser, hi));
-
-  Ok(Definition::Fragment(
-    FragmentDefinition {
-      loc: parser.loc(lo, hi),
-      name: name,
-      type_condition: tc,
-      directives: dirs,
-      selection_set: selections,
-    }
-  ))
-}
-
-fn parse_type_condition<'a>(parser: &mut Parser<'a>, lo: usize) -> DRes<'a, TypeCondition<'a>> {
-  unimplemented!()
+  }
 }
 
 fn some<T>(input: Vec<T>) -> Option<Vec<T>> {
