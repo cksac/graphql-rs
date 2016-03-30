@@ -145,6 +145,7 @@ pub struct GraphQLArgument {
   name: String,
   description: Option<String>,
   typ: Rc<GraphQLInput>,
+  default_value: Option<String>,
 }
 
 /// Interfaces
@@ -481,6 +482,7 @@ pub struct GraphQLArgumentBuilder {
   name: String,
   description: Option<String>,
   typ: Option<Rc<GraphQLInput>>,
+  default_value: Option<String>,
 }
 
 impl GraphQLArgumentBuilder {
@@ -494,6 +496,11 @@ impl GraphQLArgumentBuilder {
 
   pub fn type_of<T: GraphQLInput + 'static>(mut self, typ: &Rc<T>) -> GraphQLArgumentBuilder {
     self.typ = Some(typ.clone());
+    self
+  }
+
+  pub fn default_value(mut self, default_value: &str) -> GraphQLArgumentBuilder {
+    self.default_value = Some(default_value.to_owned());
     self
   }
 
