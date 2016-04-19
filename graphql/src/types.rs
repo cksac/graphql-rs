@@ -49,15 +49,15 @@ pub trait GraphQLType {
   fn name(&self) -> &str;
   fn description(&self) -> Option<&str>;
 }
-impl_graphql_type_for! { GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLInputObject, GraphQLList, GraphQLInputList, GraphQLInputNonNull, GraphQLNonNull }
+impl_graphql_type_for! { GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLInputObject, GraphQLList, GraphQLInputList, GraphQLInputOptional, GraphQLOptional }
 
 pub trait GraphQLInput: GraphQLType {}
 impl<T: GraphQLScalar> GraphQLInput for T {}
-blanket_impl! { GraphQLInput for GraphQLEnum, GraphQLInputObject, GraphQLInputList, GraphQLInputNonNull }
+blanket_impl! { GraphQLInput for GraphQLEnum, GraphQLInputObject, GraphQLInputList, GraphQLInputOptional }
 
 pub trait GraphQLOutput: GraphQLType {}
 impl<T: GraphQLScalar> GraphQLOutput for T {}
-blanket_impl! { GraphQLOutput for GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLList, GraphQLNonNull }
+blanket_impl! { GraphQLOutput for GraphQLObject, GraphQLInterface, GraphQLUnion, GraphQLEnum, GraphQLList, GraphQLOptional }
 
 /// Scalars
 pub trait GraphQLScalar: GraphQLType {
@@ -236,14 +236,14 @@ pub struct GraphQLList {
   of_typ: Rc<GraphQLOutput>,
 }
 
-/// Non-Null
-pub struct GraphQLInputNonNull {
+/// Optional
+pub struct GraphQLInputOptional {
   name: String,
   description: Option<String>,
   of_typ: Rc<GraphQLInput>,
 }
 
-pub struct GraphQLNonNull {
+pub struct GraphQLOptional {
   name: String,
   description: Option<String>,
   of_typ: Rc<GraphQLOutput>,
@@ -490,6 +490,7 @@ impl GraphQLArgumentBuilder {
     GraphQLArgumentBuilder {
       name: name.to_owned(),
       description: None,
+      default_value: None,
       typ: None,
     }
   }
@@ -512,6 +513,7 @@ impl GraphQLArgumentBuilder {
     GraphQLArgument {
       name: self.name,
       description: self.description,
+      default_value: self.default_value,
       typ: self.typ.unwrap(),
     }
   }
@@ -734,21 +736,21 @@ impl GraphQLListType {
   }
 }
 
-/// Non-null type builder
-pub struct GraphQLNonNullType;
-impl GraphQLNonNullType {
-  pub fn input<T: GraphQLInput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLInputNonNull> {
-    Rc::new(GraphQLInputNonNull {
+/// Optional type builder
+pub struct GraphQLOptionalType;
+impl GraphQLOptionalType {
+  pub fn input<T: GraphQLInput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLInputOptional> {
+    Rc::new(GraphQLInputOptional {
       name: of_type.name().to_owned(),
-      description: Some(format!("Non-null {}", of_type.name())),
+      description: Some(format!("Optional {}", of_type.name())),
       of_typ: of_type.clone(),
     })
   }
 
-  pub fn output<T: GraphQLOutput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLNonNull> {
-    Rc::new(GraphQLNonNull {
+  pub fn output<T: GraphQLOutput + 'static>(of_type: &Rc<T>) -> Rc<GraphQLOptional> {
+    Rc::new(GraphQLOptional {
       name: of_type.name().to_owned(),
-      description: Some(format!("Non-null {}", of_type.name())),
+      description: Some(format!("Optional {}", of_type.name())),
       of_typ: of_type.clone(),
     })
   }
