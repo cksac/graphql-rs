@@ -10,7 +10,7 @@ use source::Source;
 pub struct Location<'a> {
   pub start: usize,
   pub end: usize,
-  pub source: Option<&'a Source<'a>>
+  pub source: &'a Source<'a>
 }
 
 /// All AST node types implement this trait.
@@ -60,7 +60,7 @@ impl_node_for! { FloatValue }
 ///   - `"` StringCharacter+ `"`
 pub struct StringValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: String
+  pub value: &'a str
 }
 
 impl_node_for! { StringValue }
@@ -68,7 +68,27 @@ impl_node_for! { StringValue }
 /// Document : Definition+
 pub struct Document<'a> {
   pub loc: Option<Location<'a>>,
+  pub source: Source<'a>,
   pub definitions: Vec<Definition<'a>>
+}
+
+impl<'a> Document<'a> {
+  pub fn new(src: Source<'a>) -> Self {
+    Document {
+      source: src,
+      loc: None,
+      definitions: Vec::new(),
+    }
+  }
+
+  pub fn set_loc(mut self, loc: Location<'a>) -> Self {
+    self.loc = Some(loc);
+    self
+  }
+
+  pub fn add_definition(&mut self, def: Definition<'a>) {
+    self.definitions.push(def);
+  }
 }
 
 impl_node_for! { Document }
@@ -283,12 +303,7 @@ pub enum Type<'a> {
 }
 
 /// NamedType : Name
-pub struct NamedType<'a> {
-  pub loc: Option<Location<'a>>,
-  pub name: Name<'a>
-}
-
-impl_node_for! { NamedType }
+pub type NamedType<'a> = Name<'a>;
 
 /// ListType : [ Type ]
 pub struct ListType<'a> {
