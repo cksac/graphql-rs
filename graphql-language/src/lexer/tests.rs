@@ -13,7 +13,7 @@ fn test_with_lex(input: &str, expeced: Token) {
 }
 
 fn test_str(input: &str, expeced: &str) {
-  let len = expeced.len();
+  let len = expeced.chars().count();
   test_with_lex(input, StringValue(expeced, 1, len + 1))
 }
 
@@ -36,6 +36,13 @@ fn test_name() {
   test_next_token(&mut lexer, StringValue("  white space   ", 32, 48));
   test_next_token(&mut lexer, Name("other_name", 50, 60));
   test_next_token(&mut lexer, Eof);
+  assert_eq!(None, lexer.next());
+}
+
+#[test]
+fn test_skip() {
+  let mut lexer = Lexer::new("\t\t\r\n\n\n#this is a skipp!\n  name1");
+  test_next_token(&mut lexer, Name("name1", 26, 31));
   assert_eq!(None, lexer.next());
 }
 
