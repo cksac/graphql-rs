@@ -31,21 +31,42 @@ impl error::Error for Error {
 impl fmt::Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match *self {
-      Error::Lexer(ref e) => write!(f, "{} due to {}", error::Error::description(self), error::Error::description(e)),
-      Error::Parser(ref e) => write!(f, "{} due to {}", error::Error::description(self), error::Error::description(e)),
-      Error::Io(ref e) => write!(f, "{} due to {}", error::Error::description(self), error::Error::description(e)),
+      Error::Lexer(ref e) => {
+        write!(f,
+               "{} due to {}",
+               error::Error::description(self),
+               error::Error::description(e))
+      }
+      Error::Parser(ref e) => {
+        write!(f,
+               "{} due to {}",
+               error::Error::description(self),
+               error::Error::description(e))
+      }
+      Error::Io(ref e) => {
+        write!(f,
+               "{} due to {}",
+               error::Error::description(self),
+               error::Error::description(e))
+      }
     }
   }
 }
 
 impl From<super::lexer::Error> for Error {
-  fn from(error: super::lexer::Error) -> Error { Error::Lexer(error) }
+  fn from(error: super::lexer::Error) -> Error {
+    Error::Lexer(error)
+  }
 }
 
 impl From<super::parser::Error> for Error {
-  fn from(error: super::parser::Error) -> Error { Error::Parser(error) }
+  fn from(error: super::parser::Error) -> Error {
+    Error::Parser(error)
+  }
 }
 
 impl From<io::Error> for Error {
-  fn from(error: io::Error) -> Error { Error::Io(error) }
+  fn from(error: io::Error) -> Error {
+    Error::Io(error)
+  }
 }
