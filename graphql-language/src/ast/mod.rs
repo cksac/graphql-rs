@@ -18,34 +18,20 @@ macro_rules! impl_node_for {
   }
 }
 
-macro_rules! impl_life_node_for {
-  ($data:ident) => {
-    impl<'a> Node for $data<'a> {
-      fn location(&self) -> Option<&Location> {
-        self.loc.as_ref()
-      }
-    }
-  }
-}
-
-use std::borrow::Cow;
 use super::Result;
-use std::path::Path;
+use std::path::PathBuf;
 use super::parser::Parser;
 
 /// The root of the document, contains the Source and the Document node.
-pub struct Root<'a> {
-  parser: super::parser::Parser<'a>,
+pub struct Root {
   pub source: String,
-  pub document: Document<'a>,
+  pub document: Document,
 }
 
-impl<'a> Root<'a> {
+impl Root {
   pub fn new<S: Into<String>>(src: S) -> Self {
-    let s = src.into();
     Root {
-      source: s.clone(),
-      parser: Parser::new(s),
+      source: src.into(),
       document: Document {
         loc: None,
         definitions: Vec::new(),
@@ -53,18 +39,20 @@ impl<'a> Root<'a> {
     }
   }
 
-  pub fn from_file(path: &'a Path) -> Result<Self> {
+  pub fn from_file<S: Into<PathBuf>>(src: S) -> Result<Self> {
     use std::fs::File;
     use std::io::Read;
 
+    let path = src.into();
     let mut f = try!(File::open(path.clone()));
     let mut buf = String::new();
     try!(f.read_to_string(&mut buf));
     Ok(Self::new(buf))
   }
 
+  // TODO PARSE
   pub fn parse(mut self) -> Result<Self> {
-    self.document = try!(self.parser.parse());
+    self.document = try!(Parser::parse(&self.source));
     Ok(self)
   }
 }
@@ -77,24 +65,24 @@ pub struct Location {
 }
 
 /// Document : Definition+
-pub struct Document<'a> {
+pub struct Document {
   pub loc: Option<Location>,
-  pub definitions: Vec<Definition<'a>>,
+  pub definitions: Vec<Definition>,
 }
 
-impl_life_node_for! { Document }
+impl_node_for! { Document }
 
 /// Directives : Directive+
-pub type Directives<'a> = Vec<Directive<'a>>;
+pub type Directives = Vec<Directive>;
 
 /// Directive : @ Name Arguments?
-pub struct Directive<'a> {
+pub struct Directive {
   pub loc: Option<Location>,
-  pub name: Name<'a>,
-  pub arguments: Option<Arguments<'a>>,
+  pub name: Name,
+  pub arguments: Option<Arguments>,
 }
 
-impl_life_node_for! { Directive }
+impl_node_for! { Directive }
 
 mod definitions;
 pub use self::definitions::*;
