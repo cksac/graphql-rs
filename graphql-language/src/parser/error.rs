@@ -26,10 +26,10 @@ impl fmt::Display for Error {
 impl error::Error for Error {
   fn description(&self) -> &str {
     match *self {
-      Error::Eof => "bad",
-      Error::UnkownOperation => "bad",
-      Error::UnexpectedToken => "bad",
-      Error::MissingExpectedToken => "bad",
+      Error::Eof => "End of File!",
+      Error::UnkownOperation => "What is this OP?",
+      Error::UnexpectedToken => "This token was not expected",
+      Error::MissingExpectedToken => "There should of been a token here",
       Error::ExpectedValueNotFound => "No value?",
     }
   }

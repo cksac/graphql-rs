@@ -1,3 +1,4 @@
+#![allow(doc_markdown)]
 //! AST node definitions which will be parsed into. Based off of the
 //! `graphql-js` [`ast.js`][1] definitions.
 //!

@@ -12,14 +12,15 @@ use std::iter::Peekable;
 macro_rules! is_next {
   ($parser: ident, $($p: pat)|*) => ({
     let mut is_match = false;
-    if let &Ok(ref c) = $parser.lexer.peek().unwrap() {
-      match c {
+    if let Ok(ref c) = *$parser.lexer.peek().unwrap() {
+      #[allow(single_match)]
+      match *c {
         $(
-          &$p => {
+          $p => {
             is_match = true;
-          }
+          },
         )*
-        _ => {}
+        _ => {},
       }
     }
     is_match
@@ -30,7 +31,7 @@ macro_rules! is_next {
 // but I will not write `self.lexer.peek().unwrap()` *every* time I call this!
 macro_rules! peek {
   ($parser: ident) => ({
-    if let &Ok(ref c) = $parser.lexer.peek().unwrap() {
+    if let Ok(ref c) = *$parser.lexer.peek().unwrap() {
       c
     } else {
       // TODO Remember what this is and make it not panic?
@@ -169,10 +170,10 @@ impl<'a> Parser<'a> {
       next!(self); // Required to skip the start brace.
 
       loop {
-        match peek!(self) {
-          &Name(_, _, _) => selections.push(try!(self.parse_field())),
-          &Punctuator(Spread, _, _) => selections.push(try!(self.parse_fragment())),
-          &Punctuator(RightBrace, _, _) => {
+        match *peek!(self) {
+          Name(_, _, _) => selections.push(try!(self.parse_field())),
+          Punctuator(Spread, _, _) => selections.push(try!(self.parse_fragment())),
+          Punctuator(RightBrace, _, _) => {
             next!(self); // Required to skip the end brace.
             break;
           }
@@ -247,8 +248,8 @@ impl<'a> Parser<'a> {
       next!(self); // Required to skip the start paren.
 
       loop {
-        match peek!(self) {
-          &Name(_, _, _) => {
+        match *peek!(self) {
+          Name(_, _, _) => {
             let mut loc = self.loc();
             let name = try!(self.parse_name());
             match next!(self) {
@@ -266,7 +267,7 @@ impl<'a> Parser<'a> {
               }
             }
           }
-          &Punctuator(RightParen, _, _) => {
+          Punctuator(RightParen, _, _) => {
             break;
           }
           _ => {
@@ -346,17 +347,17 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_value(&mut self, is_const: bool) -> Result<ast::Value> {
-    match peek!(self) {
-      &Punctuator(LeftBracket, _, _) => self.parse_array(is_const),
-      &Punctuator(LeftBrace, _, _) => self.parse_object(is_const),
-      &Punctuator(Dollar, _, _) => {
+    match *peek!(self) {
+      Punctuator(LeftBracket, _, _) => self.parse_array(is_const),
+      Punctuator(LeftBrace, _, _) => self.parse_object(is_const),
+      Punctuator(Dollar, _, _) => {
         if is_const {
           Err(Error::ExpectedValueNotFound)
         } else {
           Ok(ast::Value::Variable(try!(self.parse_variable())))
         }
       }
-      &Name(_, _, _) => {
+      Name(_, _, _) => {
         let name = try!(self.parse_name());
         let val = &*name.value.clone();
         match val {
@@ -370,21 +371,21 @@ impl<'a> Parser<'a> {
           _ => Err(Error::ExpectedValueNotFound),//"Unexpected null"),
         }
       }
-      &IntValue(_, _, _) => {
+      IntValue(_, _, _) => {
         let val = value!(self).parse().unwrap();
         Ok(ast::Value::Int(ast::IntValue {
           loc: Some(self.loc()),
           value: val,
         }))
       }
-      &FloatValue(_, _, _) => {
+      FloatValue(_, _, _) => {
         let val = value!(self).parse().unwrap();
         Ok(ast::Value::Float(ast::FloatValue {
           loc: Some(self.loc()),
           value: val,
         }))
       }
-      &StringValue(_, _, _) => {
+      StringValue(_, _, _) => {
         let val = value!(self).to_owned();
         Ok(ast::Value::String(ast::StringValue {
           loc: Some(self.loc()),

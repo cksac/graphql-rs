@@ -1,4 +1,4 @@
-#![allow(unused_variables)]
+#![allow(unused_variables, unknown_lints)]
 pub mod ast;
 mod error;
 mod lexer;

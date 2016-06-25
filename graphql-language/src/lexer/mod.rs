@@ -17,6 +17,7 @@ macro_rules! take {
   ($lexer: ident, $($p: pat)|*) => ({
     let mut is_taken = false;
     if let Some(&(p, c)) = $lexer.iter.peek() {
+      #[allow(single_match)]
       match c {
         $(
           $p => {
@@ -135,15 +136,12 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_spread(&mut self) -> bool {
-    if take!(self, '.') {
-      if take!(self, '.') {
-        if take!(self, '.') {
-          self.hi += 1;
-          return true;
-        }
-      }
+    if take!(self, '.') && take!(self, '.') && take!(self, '.') {
+      self.hi += 1;
+      true
+    } else {
+      false
     }
-    return false;
   }
 
   fn scan_name(&mut self) {
@@ -159,11 +157,9 @@ impl<'a> Lexer<'a> {
       self.lo += 1;
     }
     loop {
-      if take!(self, '\\') {
-        if !take!(self, '\\' | '"' | 'b' | 'f' | 'n' | 'r' | 't' | '/' | 'u') {
-          is_bad_escape = true;
-          break;
-        }
+      if take!(self, '\\') && !take!(self, '\\' | '"' | 'b' | 'f' | 'n' | 'r' | 't' | '/' | 'u') {
+        is_bad_escape = true;
+        break;
       }
       take_while_not!(self, '"' | '\\');
       if take!(self, '"') {
@@ -176,6 +172,7 @@ impl<'a> Lexer<'a> {
 
   // IntValue:   (+|-)?(0|[1-9][0-9]*)
   // FloatValue: (+|-)?(0|[1-9][0-9]*)(\.[0-9]+)?((E|e)(+|-)?[0-9]+)?
+  #[allow(cyclomatic_complexity)]
   fn scan_number(&mut self) -> (bool, bool) {
     let mut is_float = false;
     take!(self, '+' | '-');
@@ -185,10 +182,8 @@ impl<'a> Lexer<'a> {
       if take!(self, ' ' | '\t' | '\r' | '\n' | ',') || take_eof!(self) {
         return (true, is_float);
       }
-    } else if take!(self, '0') {
-      if take!(self, ' ' | '\t' | '\r' | '\n' | ',') || take_eof!(self) {
-        return (true, is_float);
-      }
+    } else if take!(self, '0') && take!(self, ' ' | '\t' | '\r' | '\n' | ',') || take_eof!(self) {
+      return (true, is_float);
     }
     // Fractional part
     if take!(self, '.') {
@@ -214,7 +209,7 @@ impl<'a> Lexer<'a> {
     if take!(self, ' ' | '\t' | '\r' | '\n' | ',') || take_eof!(self) {
       return (true, is_float);
     }
-    return (false, is_float);
+    (false, is_float)
   }
 }
 
