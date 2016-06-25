@@ -43,6 +43,7 @@ fn test_name() {
 fn test_skip() {
   let mut lexer = Lexer::new("\t\t\r\n\n\n#this is a skipp!\n  name1");
   test_next_token(&mut lexer, Name("name1", 26, 31));
+  test_next_token(&mut lexer, Eof);
   assert_eq!(None, lexer.next());
 }
 
