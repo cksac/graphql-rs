@@ -7,7 +7,6 @@ use ast;
 use lexer::Punctuator::*;
 use lexer::Token::*;
 use lexer::Lexer;
-use source::Source;
 use std::iter::Peekable;
 
 macro_rules! peek {
@@ -80,26 +79,25 @@ macro_rules! value {
 
 pub struct Parser<'a> {
   lexer: Peekable<Lexer<'a>>,
-  source: &'a Source<'a>,
   prev: usize,
   curr: usize,
 }
 
 impl<'a> Parser<'a> {
-  pub fn new(src: &'a Source) -> Self {
-    Parser {
-      lexer: Lexer::new(&src.body).peekable(),
-      source: src,
-      prev: 0,
-      curr: 0,
-    }
+  pub fn parse(src: &'a str) -> Result<ast::Document<'a>> {
+      let parser = Parser {
+        lexer: Lexer::new(src).peekable(),
+        prev: 0,
+        curr: 0,
+      };
+
+      unimplemented!()
   }
 
-  fn loc(&self) -> ast::Location<'a> {
+  fn loc(&self) -> ast::Location {
     ast::Location {
       start: self.prev,
       end: self.curr,
-      source: self.source,
     }
   }
 
@@ -388,15 +386,5 @@ impl<'a> Parser<'a> {
 
   fn parse_type_condition(&mut self) -> Result<ast::TypeCondition<'a>> {
     unimplemented!()
-  }
-}
-
-impl<'a> Iterator for Parser<'a> {
-  type Item = Result<ast::Definition<'a>>;
-  fn next(&mut self) -> Option<Result<ast::Definition<'a>>> {
-    match self.lexer.peek() {
-      Some(&Ok(Eof)) | None => None, // This should allways reach `Some(Eof)` before None, but just in case.
-      Some(_) => Some(self.parse_definition()),
-    }
   }
 }
