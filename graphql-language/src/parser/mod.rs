@@ -84,43 +84,39 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-  pub fn new(src: String) -> Self {
-    Parser {
+  pub fn parse(src: &'a str) -> Result<ast::Document> {
+    let mut parser = Parser {
       lexer: Lexer::new(src).peekable(),
       prev: 0,
       curr: 0,
+    };
+
+    let mut loc = ast::Location {
+      start: match *peek!(parser) {
+        Eof => {
+          return Err(Error::Eof);
+        }
+        Punctuator(_, lo, _) |
+        Name(_, lo, _) |
+        IntValue(_, lo, _) |
+        StringValue(_, lo, _) |
+        FloatValue(_, lo, _) => lo,
+      },
+      end: 0,
+    };
+
+    let mut defs = vec![];
+
+    while is_next!(parser, Eof) != true {
+      defs.push(try!(parser.parse_definition()));
     }
-  }
 
-  pub fn parse(&mut self) -> Result<ast::Document<'a>> {
-      let mut loc = ast::Location {
-        start: match *peek!(self) {
-          Eof => {
-            return Err(Error::Eof);
-          },
-          Punctuator (_, lo, _) |
-          Name       (_, lo, _) |
-          IntValue   (_, lo, _) |
-          StringValue(_, lo, _) |
-          FloatValue (_, lo, _) => {
-            lo
-          },
-        },
-        end: 0,
-      };
+    loc.end = parser.curr;
 
-      let mut defs = vec![];
-
-      while is_next!(self, Eof) != true {
-        defs.push(try!(self.parse_definition()));
-      }
-
-      loc.end = self.curr;
-
-      Ok(ast::Document {
-        loc: Some(loc),
-        definitions: defs,
-      })
+    Ok(ast::Document {
+      loc: Some(loc),
+      definitions: defs,
+    })
   }
 
   // TODO Check the loc for all the things
@@ -133,13 +129,13 @@ impl<'a> Parser<'a> {
 
   // Parser Bits
 
-// DONE
-  fn parse_definition(&mut self) -> Result<ast::Definition<'a>> {
+  // DONE
+  fn parse_definition(&mut self) -> Result<ast::Definition> {
     match next!(self) {
       Punctuator(LeftBrace, _, _) => self.parse_short_operation(),
       Name(name, _, _) => {
         match name {
-          "query"    => self.parse_operation_def(ast::OperationType::Query),
+          "query" => self.parse_operation_def(ast::OperationType::Query),
           "mutation" => self.parse_operation_def(ast::OperationType::Mutation),
           "fragment" => self.parse_fragment_def(),
           _ => Err(Error::UnkownOperation),
@@ -149,8 +145,8 @@ impl<'a> Parser<'a> {
     }
   }
 
-// DONE
-  fn parse_short_operation(&mut self) -> Result<ast::Definition<'a>> {
+  // DONE
+  fn parse_short_operation(&mut self) -> Result<ast::Definition> {
     let mut loc = self.loc();
     let selections = try!(self.parse_selection_set());
     loc.end = self.curr;
@@ -165,8 +161,8 @@ impl<'a> Parser<'a> {
     }))
   }
 
-// DONE
-  fn parse_selection_set(&mut self) -> Result<ast::SelectionSet<'a>> {
+  // DONE
+  fn parse_selection_set(&mut self) -> Result<ast::SelectionSet> {
     if is_next!(self, Punctuator(LeftBrace, _, _)) {
       let mut loc = self.loc();
       let mut selections = Vec::new();
@@ -196,8 +192,8 @@ impl<'a> Parser<'a> {
     }
   }
 
-// DONE
-  fn parse_field(&mut self) -> Result<ast::Selection<'a>> {
+  // DONE
+  fn parse_field(&mut self) -> Result<ast::Selection> {
     let mut loc = self.loc();
 
     let (alias, name) = {
@@ -231,21 +227,21 @@ impl<'a> Parser<'a> {
     }))
   }
 
-// DONE
-  fn parse_name(&mut self) -> Result<ast::Name<'a>> {
+  // DONE
+  fn parse_name(&mut self) -> Result<ast::Name> {
     if is_next!(self, Name(_, _, _)) {
       let v = value!(self);
       Ok(ast::Name {
         loc: Some(self.loc()),
-        value: v,
+        value: v.into(),
       })
     } else {
       Err(Error::MissingExpectedToken)//"Expected a name!")
     }
   }
 
-// DONE
-  fn parse_arguments(&mut self) -> Result<ast::Arguments<'a>> {
+  // DONE
+  fn parse_arguments(&mut self) -> Result<ast::Arguments> {
     if is_next!(self, Punctuator(LeftParen, _, _)) {
       let mut args = Vec::new();
       next!(self); // Required to skip the start paren.
@@ -285,12 +281,12 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn parse_directives(&mut self) -> Result<ast::Directives<'a>> {
+  fn parse_directives(&mut self) -> Result<ast::Directives> {
     unimplemented!()
   }
 
   // FIXME Parse Fragments!
-  fn parse_fragment(&mut self) -> Result<ast::Selection<'a>> {
+  fn parse_fragment(&mut self) -> Result<ast::Selection> {
     let mut loc = self.loc();
 
     // if is_next!(self, TokenName("on", _, _)) {
@@ -309,8 +305,8 @@ impl<'a> Parser<'a> {
     // }
   }
 
-// DONE
-  fn parse_operation_def(&mut self, op: ast::OperationType) -> Result<ast::Definition<'a>> {
+  // DONE
+  fn parse_operation_def(&mut self, op: ast::OperationType) -> Result<ast::Definition> {
     let mut loc = self.loc();
     let name = self.parse_name().ok();
     let vars = self.parse_variables().ok();
@@ -328,12 +324,12 @@ impl<'a> Parser<'a> {
     }))
   }
 
-  fn parse_variables(&mut self) -> Result<ast::VariableDefinitions<'a>> {
+  fn parse_variables(&mut self) -> Result<ast::VariableDefinitions> {
     unimplemented!()
   }
 
-// DONE
-  fn parse_value(&mut self, is_const: bool) -> Result<ast::Value<'a>> {
+  // DONE
+  fn parse_value(&mut self, is_const: bool) -> Result<ast::Value> {
     match peek!(self) {
       &Punctuator(LeftBracket, _, _) => self.parse_array(is_const),
       &Punctuator(LeftBrace, _, _) => self.parse_object(is_const),
@@ -346,16 +342,15 @@ impl<'a> Parser<'a> {
       }
       &Name(_, _, _) => {
         let name = try!(self.parse_name());
-        match name.value {
+        let val = &*name.value.clone();
+        match val {
           "true" | "false" => {
             Ok(ast::Value::Boolean(ast::BooleanValue {
               loc: name.loc,
               value: name.value.parse().unwrap(),
             }))
           }
-          e if e != "null" => {
-            Ok(ast::Value::Enum(name))
-          }
+          e if e != "null" => Ok(ast::Value::Enum(name)),
           _ => Err(Error::ExpectedValueNotFound),//"Unexpected null"),
         }
       }
@@ -384,20 +379,20 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn parse_array(&mut self, is_const: bool) -> Result<ast::Value<'a>> {
+  fn parse_array(&mut self, is_const: bool) -> Result<ast::Value> {
     unimplemented!()
   }
 
-  fn parse_object(&mut self, is_const: bool) -> Result<ast::Value<'a>> {
+  fn parse_object(&mut self, is_const: bool) -> Result<ast::Value> {
     unimplemented!()
   }
 
-  fn parse_variable(&mut self) -> Result<ast::Value<'a>> {
+  fn parse_variable(&mut self) -> Result<ast::Value> {
     unimplemented!()
   }
 
-// DONE
-  fn parse_fragment_def(&mut self) -> Result<ast::Definition<'a>> {
+  // DONE
+  fn parse_fragment_def(&mut self) -> Result<ast::Definition> {
     let mut loc = self.loc();
     let name = try!(self.parse_name());
     let tc = try!(self.parse_type_condition());
@@ -414,7 +409,7 @@ impl<'a> Parser<'a> {
     }))
   }
 
-  fn parse_type_condition(&mut self) -> Result<ast::TypeCondition<'a>> {
+  fn parse_type_condition(&mut self) -> Result<ast::TypeCondition> {
     unimplemented!()
   }
 }
