@@ -3,35 +3,35 @@ use super::*;
 /// Definition :
 ///   - OperationDefinition
 ///   - FragmentDefinition
-pub enum Definition<'a> {
-  Operation(OperationDefinition<'a>),
-  Fragment(FragmentDefinition<'a>),
+pub enum Definition {
+  Operation(OperationDefinition),
+  Fragment(FragmentDefinition),
 }
 
 /// OperationDefinition :
 ///   - SelectionSet
 ///   - OperationType Name? VariableDefinitions? Directives? SelectionSet
-pub struct OperationDefinition<'a> {
+pub struct OperationDefinition {
   pub loc: Option<Location>,
   pub operation: OperationType,
-  pub name: Option<Name<'a>>,
-  pub variable_definitions: Option<VariableDefinitions<'a>>,
-  pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>,
+  pub name: Option<Name>,
+  pub variable_definitions: Option<VariableDefinitions>,
+  pub directives: Option<Directives>,
+  pub selection_set: SelectionSet,
 }
 
-impl_life_node_for! { OperationDefinition }
+impl_node_for! { OperationDefinition }
 
 /// FragmentDefinition : fragment FragmentName TypeCondition Directives? SelectionSet
-pub struct FragmentDefinition<'a> {
+pub struct FragmentDefinition {
   pub loc: Option<Location>,
-  pub name: Name<'a>,
-  pub type_condition: TypeCondition<'a>,
-  pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>,
+  pub name: Name,
+  pub type_condition: TypeCondition,
+  pub directives: Option<Directives>,
+  pub selection_set: SelectionSet,
 }
 
-impl_life_node_for! { FragmentDefinition }
+impl_node_for! { FragmentDefinition }
 
 /// OperationType : one of query mutation
 pub enum OperationType {
@@ -40,14 +40,14 @@ pub enum OperationType {
 }
 
 /// VariableDefinitions : ( VariableDefinition+ )
-pub type VariableDefinitions<'a> = Vec<VariableDefinition<'a>>;
+pub type VariableDefinitions = Vec<VariableDefinition>;
 
 /// VariableDefinition : Variable : Type DefaultValue?
-pub struct VariableDefinition<'a> {
+pub struct VariableDefinition {
   pub loc: Option<Location>,
-  pub variable: Variable<'a>,
-  pub type_: Type<'a>,
-  pub default_value: Option<DefaultValue<'a>>,
+  pub variable: Variable,
+  pub type_: Type,
+  pub default_value: Option<DefaultValue>,
 }
 
-impl_life_node_for! { VariableDefinition }
+impl_node_for! { VariableDefinition }

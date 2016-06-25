@@ -1,53 +1,53 @@
 use super::*;
 
 /// SelectionSet : { Selection+ }
-pub struct SelectionSet<'a> {
+pub struct SelectionSet {
   pub loc: Option<Location>,
-  pub selections: Vec<Selection<'a>>,
+  pub selections: Vec<Selection>,
 }
 
-impl_life_node_for! { SelectionSet }
+impl_node_for! { SelectionSet }
 
 /// Selection :
 ///   - Field
 ///   - FragmentSpread
 ///   - InlineFragment
-pub enum Selection<'a> {
-  Field(Field<'a>),
-  FragmentSpread(FragmentSpread<'a>),
-  InlineFragment(InlineFragment<'a>),
+pub enum Selection {
+  Field(Field),
+  FragmentSpread(FragmentSpread),
+  InlineFragment(InlineFragment),
 }
 
 /// FragmentSpread : ... FragmentName Directives?
-pub struct FragmentSpread<'a> {
+pub struct FragmentSpread {
   pub loc: Option<Location>,
-  pub name: Name<'a>,
-  pub directives: Option<Directives<'a>>,
+  pub name: Name,
+  pub directives: Option<Directives>,
 }
 
-impl_life_node_for! { FragmentSpread }
+impl_node_for! { FragmentSpread }
 
 /// InlineFragment : ... TypeCondition? Directives? SelectionSet
-pub struct InlineFragment<'a> {
+pub struct InlineFragment {
   pub loc: Option<Location>,
-  pub type_condition: Option<TypeCondition<'a>>,
-  pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>,
+  pub type_condition: Option<TypeCondition>,
+  pub directives: Option<Directives>,
+  pub selection_set: SelectionSet,
 }
 
-impl_life_node_for! { InlineFragment }
+impl_node_for! { InlineFragment }
 
 /// FragmentName : Name but not `on`
-pub type FragmentName<'a> = Name<'a>;
+pub type FragmentName = Name;
 
 /// Field : Alias? Name Arguments? Directives? SelectionSet?
-pub struct Field<'a> {
+pub struct Field {
   pub loc: Option<Location>,
-  pub alias: Option<Alias<'a>>,
-  pub name: Name<'a>,
-  pub arguments: Option<Arguments<'a>>,
-  pub directives: Option<Directives<'a>>,
-  pub selection_set: Option<SelectionSet<'a>>,
+  pub alias: Option<Alias>,
+  pub name: Name,
+  pub arguments: Option<Arguments>,
+  pub directives: Option<Directives>,
+  pub selection_set: Option<SelectionSet>,
 }
 
-impl_life_node_for! { Field }
+impl_node_for! { Field }

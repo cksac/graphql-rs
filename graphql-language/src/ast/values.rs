@@ -9,45 +9,45 @@ use super::*;
 ///   - EnumValue
 ///   - ListValue[?Const]
 ///   - ObjectValue[?Const]
-pub enum Value<'a> {
-  Variable(Variable<'a>),
+pub enum Value {
+  Variable(Variable),
   Int(IntValue),
   Float(FloatValue),
   String(StringValue),
   Boolean(BooleanValue),
-  Enum(EnumValue<'a>),
-  List(ListValue<'a>),
-  Object(ObjectValue<'a>),
+  Enum(EnumValue),
+  List(ListValue),
+  Object(ObjectValue),
 }
 
 /// DefaultValue : = Value[Const]
-pub type DefaultValue<'a> = Value<'a>;
+pub type DefaultValue = Value;
 
 /// Variable : $ Name
-pub type Variable<'a> = Name<'a>;
+pub type Variable = Name;
 
 /// Name :: /[_A-Za-z][_0-9A-Za-z]*/
-pub struct Name<'a> {
+pub struct Name {
   pub loc: Option<Location>,
-  pub value: &'a str,
+  pub value: String,
 }
 
-impl_life_node_for! { Name }
+impl_node_for! { Name }
 
 /// Alias : Name :
-pub type Alias<'a> = Name<'a>;
+pub type Alias = Name;
 
 /// Arguments : ( Argument+ )
-pub type Arguments<'a> = Vec<Argument<'a>>;
+pub type Arguments = Vec<Argument>;
 
 /// Argument : Name : Value
-pub struct Argument<'a> {
+pub struct Argument {
   pub loc: Option<Location>,
-  pub name: Name<'a>,
-  pub value: Value<'a>,
+  pub name: Name,
+  pub value: Value,
 }
 
-impl_life_node_for! { Argument }
+impl_node_for! { Argument }
 
 /// IntValue :: IntegerPart
 pub struct IntValue {
@@ -87,33 +87,33 @@ pub struct BooleanValue {
 impl_node_for! { BooleanValue }
 
 /// EnumValue : Name but not `true`, `false` or `null`
-pub type EnumValue<'a> = Name<'a>;
+pub type EnumValue = Name;
 
 /// ListValue[Const] :
 ///   - [ ]
 ///   - [ Value[?Const]+ ]
-pub struct ListValue<'a> {
+pub struct ListValue {
   pub loc: Option<Location>,
-  pub values: Vec<Value<'a>>,
+  pub values: Vec<Value>,
 }
 
-impl_life_node_for! { ListValue }
+impl_node_for! { ListValue }
 
 /// ObjectValue[Const] :
 ///   - { }
 ///   - { ObjectField[?Const]+ }
-pub struct ObjectValue<'a> {
+pub struct ObjectValue {
   pub loc: Option<Location>,
-  pub fields: Vec<ObjectField<'a>>,
+  pub fields: Vec<ObjectField>,
 }
 
-impl_life_node_for! { ObjectValue }
+impl_node_for! { ObjectValue }
 
 /// ObjectField[Const] : Name : Value[?Const]
-pub struct ObjectField<'a> {
+pub struct ObjectField {
   pub loc: Option<Location>,
-  pub name: Name<'a>,
-  pub value: Value<'a>,
+  pub name: Name,
+  pub value: Value,
 }
 
-impl_life_node_for! { ObjectField }
+impl_node_for! { ObjectField }

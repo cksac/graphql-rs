@@ -4,23 +4,23 @@ use super::*;
 ///   - NamedType
 ///   - ListType
 ///   - NonNullType
-pub enum Type<'a> {
-  Named(NamedType<'a>),
-  List(Box<ListType<'a>>),
-  NonNullNamed(Box<NonNullNamedType<'a>>),
-  NonNullList(Box<NonNullListType<'a>>),
+pub enum Type {
+  Named(NamedType),
+  List(Box<ListType>),
+  NonNullNamed(Box<NonNullNamedType>),
+  NonNullList(Box<NonNullListType>),
 }
 
 /// NamedType : Name
-pub type NamedType<'a> = Name<'a>;
+pub type NamedType = Name;
 
 /// ListType : [ Type ]
-pub struct ListType<'a> {
+pub struct ListType {
   pub loc: Option<Location>,
-  pub type_: Type<'a>,
+  pub type_: Type,
 }
 
-impl_life_node_for! { ListType }
+impl_node_for! { ListType }
 
 /// NonNullType :
 ///   - NamedType !
@@ -32,20 +32,20 @@ impl_life_node_for! { ListType }
 ///
 /// [1]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js#L49
 /// [2]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js#L254
-pub struct NonNullNamedType<'a> {
+pub struct NonNullNamedType {
   pub loc: Option<Location>,
-  pub type_: NamedType<'a>,
+  pub type_: NamedType,
 }
 
-impl_life_node_for! { NonNullNamedType }
+impl_node_for! { NonNullNamedType }
 
 /// See documentation for the `NonNullNamedType` struct.
-pub struct NonNullListType<'a> {
+pub struct NonNullListType {
   pub loc: Option<Location>,
-  pub type_: ListType<'a>,
+  pub type_: ListType,
 }
 
-impl_life_node_for! { NonNullListType }
+impl_node_for! { NonNullListType }
 
 /// TypeCondition : on NamedType
-pub type TypeCondition<'a> = NamedType<'a>;
+pub type TypeCondition = NamedType;
