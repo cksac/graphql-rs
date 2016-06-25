@@ -31,17 +31,21 @@ macro_rules! impl_life_node_for {
 use std::borrow::Cow;
 use super::Result;
 use std::path::Path;
+use super::parser::Parser;
 
 /// The root of the document, contains the Source and the Document node.
 pub struct Root<'a> {
-  pub source: Cow<'a, str>,
+  parser: super::parser::Parser<'a>,
+  pub source: String,
   pub document: Document<'a>,
 }
 
 impl<'a> Root<'a> {
-  pub fn new<S: Into<Cow<'a, str>>>(src: S) -> Self {
+  pub fn new<S: Into<String>>(src: S) -> Self {
+    let s = src.into();
     Root {
-      source: src.into(),
+      source: s.clone(),
+      parser: Parser::new(s),
       document: Document {
         loc: None,
         definitions: Vec::new(),
@@ -59,18 +63,14 @@ impl<'a> Root<'a> {
     Ok(Self::new(buf))
   }
 
-  // TODO PARSE
   pub fn parse(mut self) -> Result<Self> {
-    {
-      use parser::Parser;
-      //self.document = try!(Parser::parse(&self.source));
-    }
+    self.document = try!(self.parser.parse());
     Ok(self)
   }
 }
 
 /// Contains some character offsets that identify where the source of the AST
-/// is from. Used as source.body[start..end]
+/// is from.
 pub struct Location {
   pub start: usize,
   pub end: usize,
@@ -83,19 +83,6 @@ pub struct Document<'a> {
 }
 
 impl_life_node_for! { Document }
-
-/// VariableDefinitions : ( VariableDefinition+ )
-pub type VariableDefinitions<'a> = Vec<VariableDefinition<'a>>;
-
-/// VariableDefinition : Variable : Type DefaultValue?
-pub struct VariableDefinition<'a> {
-  pub loc: Option<Location>,
-  pub variable: Variable<'a>,
-  pub type_: Type<'a>,
-  pub default_value: Option<DefaultValue<'a>>,
-}
-
-impl_life_node_for! { VariableDefinition }
 
 /// Directives : Directive+
 pub type Directives<'a> = Vec<Directive<'a>>;

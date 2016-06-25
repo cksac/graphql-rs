@@ -9,7 +9,7 @@ use lexer::Token::*;
 use lexer::Lexer;
 use std::iter::Peekable;
 
-macro_rules! peek {
+macro_rules! is_next {
   ($parser: ident, $($p: pat)|*) => ({
     let mut is_match = false;
     if let &Ok(ref c) = $parser.lexer.peek().unwrap() {
@@ -28,7 +28,7 @@ macro_rules! peek {
 
 // I need a better name for this,
 // but I will not write `self.lexer.peek().unwrap()` *every* time I call this!
-macro_rules! peek_next {
+macro_rules! peek {
   ($parser: ident) => ({
     if let &Ok(ref c) = $parser.lexer.peek().unwrap() {
       c
@@ -84,16 +84,46 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-  pub fn parse(src: &'a str) -> Result<ast::Document<'a>> {
-      let parser = Parser {
-        lexer: Lexer::new(src).peekable(),
-        prev: 0,
-        curr: 0,
-      };
-
-      unimplemented!()
+  pub fn new(src: String) -> Self {
+    Parser {
+      lexer: Lexer::new(src).peekable(),
+      prev: 0,
+      curr: 0,
+    }
   }
 
+  pub fn parse(&mut self) -> Result<ast::Document<'a>> {
+      let mut loc = ast::Location {
+        start: match *peek!(self) {
+          Eof => {
+            return Err(Error::Eof);
+          },
+          Punctuator (_, lo, _) |
+          Name       (_, lo, _) |
+          IntValue   (_, lo, _) |
+          StringValue(_, lo, _) |
+          FloatValue (_, lo, _) => {
+            lo
+          },
+        },
+        end: 0,
+      };
+
+      let mut defs = vec![];
+
+      while is_next!(self, Eof) != true {
+        defs.push(try!(self.parse_definition()));
+      }
+
+      loc.end = self.curr;
+
+      Ok(ast::Document {
+        loc: Some(loc),
+        definitions: defs,
+      })
+  }
+
+  // TODO Check the loc for all the things
   fn loc(&self) -> ast::Location {
     ast::Location {
       start: self.prev,
@@ -109,7 +139,7 @@ impl<'a> Parser<'a> {
       Punctuator(LeftBrace, _, _) => self.parse_short_operation(),
       Name(name, _, _) => {
         match name {
-          "query" => self.parse_operation_def(ast::OperationType::Query),
+          "query"    => self.parse_operation_def(ast::OperationType::Query),
           "mutation" => self.parse_operation_def(ast::OperationType::Mutation),
           "fragment" => self.parse_fragment_def(),
           _ => Err(Error::UnkownOperation),
@@ -137,13 +167,13 @@ impl<'a> Parser<'a> {
 
 // DONE
   fn parse_selection_set(&mut self) -> Result<ast::SelectionSet<'a>> {
-    if peek!(self, Punctuator(LeftBrace, _, _)) {
+    if is_next!(self, Punctuator(LeftBrace, _, _)) {
       let mut loc = self.loc();
       let mut selections = Vec::new();
       next!(self); // Required to skip the start brace.
 
       loop {
-        match peek_next!(self) {
+        match peek!(self) {
           &Name(_, _, _) => selections.push(try!(self.parse_field())),
           &Punctuator(Spread, _, _) => selections.push(try!(self.parse_fragment())),
           &Punctuator(RightBrace, _, _) => {
@@ -173,10 +203,10 @@ impl<'a> Parser<'a> {
     let (alias, name) = {
       let ret = try!(self.parse_name());
 
-      if peek!(self, Punctuator(Colon, _, _)) {
+      if is_next!(self, Punctuator(Colon, _, _)) {
         next!(self); // Skip colon.
         (Some(ret),
-         if peek!(self, Name(_, _, _)) {
+         if is_next!(self, Name(_, _, _)) {
           try!(self.parse_name())
         } else {
           return Err(Error::MissingExpectedToken);//"Expected Name after colon"); // BAIL OUT!
@@ -203,7 +233,7 @@ impl<'a> Parser<'a> {
 
 // DONE
   fn parse_name(&mut self) -> Result<ast::Name<'a>> {
-    if peek!(self, Name(_, _, _)) {
+    if is_next!(self, Name(_, _, _)) {
       let v = value!(self);
       Ok(ast::Name {
         loc: Some(self.loc()),
@@ -216,12 +246,12 @@ impl<'a> Parser<'a> {
 
 // DONE
   fn parse_arguments(&mut self) -> Result<ast::Arguments<'a>> {
-    if peek!(self, Punctuator(LeftParen, _, _)) {
+    if is_next!(self, Punctuator(LeftParen, _, _)) {
       let mut args = Vec::new();
       next!(self); // Required to skip the start paren.
 
       loop {
-        match peek_next!(self) {
+        match peek!(self) {
           &Name(_, _, _) => {
             let mut loc = self.loc();
             let name = try!(self.parse_name());
@@ -263,7 +293,7 @@ impl<'a> Parser<'a> {
   fn parse_fragment(&mut self) -> Result<ast::Selection<'a>> {
     let mut loc = self.loc();
 
-    // if peek!(self, TokenName("on", _, _)) {
+    // if is_next!(self, TokenName("on", _, _)) {
     //  next!(self);
     //
     // } else {
@@ -304,7 +334,7 @@ impl<'a> Parser<'a> {
 
 // DONE
   fn parse_value(&mut self, is_const: bool) -> Result<ast::Value<'a>> {
-    match peek_next!(self) {
+    match peek!(self) {
       &Punctuator(LeftBracket, _, _) => self.parse_array(is_const),
       &Punctuator(LeftBrace, _, _) => self.parse_object(is_const),
       &Punctuator(Dollar, _, _) => {

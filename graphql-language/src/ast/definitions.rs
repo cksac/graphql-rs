@@ -38,3 +38,16 @@ pub enum OperationType {
   Query,
   Mutation,
 }
+
+/// VariableDefinitions : ( VariableDefinition+ )
+pub type VariableDefinitions<'a> = Vec<VariableDefinition<'a>>;
+
+/// VariableDefinition : Variable : Type DefaultValue?
+pub struct VariableDefinition<'a> {
+  pub loc: Option<Location>,
+  pub variable: Variable<'a>,
+  pub type_: Type<'a>,
+  pub default_value: Option<DefaultValue<'a>>,
+}
+
+impl_life_node_for! { VariableDefinition }

@@ -112,9 +112,9 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-  pub fn new(input: &'a str) -> Lexer<'a> {
+  pub fn new(input: String) -> Lexer<'a> {
     Lexer {
-      input: input,
+      input: &input,
       input_len: input.len(),
       iter: input.char_indices().peekable(),
       is_eof: false,
