@@ -281,8 +281,24 @@ impl<'a> Parser<'a> {
     }
   }
 
+  // DONE
   fn parse_directives(&mut self) -> Result<ast::Directives> {
-    unimplemented!()
+    let mut directives = vec![];
+
+    while is_next!(self, Punctuator(At, _, _)) {
+      next!(self); // Skip the @
+      let mut loc = self.loc();
+      let name = try!(self.parse_name());
+      let args = self.parse_arguments().ok();
+      loc.end = self.curr;
+      directives.push(ast::Directive {
+        loc: Some(loc),
+        name: name,
+        arguments: args,
+      });
+    }
+
+    Ok(directives)
   }
 
   // FIXME Parse Fragments!
