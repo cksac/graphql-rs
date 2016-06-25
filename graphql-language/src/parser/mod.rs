@@ -353,7 +353,7 @@ impl<'a> Parser<'a> {
         if is_const {
           Err(Error::ExpectedValueNotFound)
         } else {
-          self.parse_variable()
+          Ok(ast::Value::Variable(try!(self.parse_variable())))
         }
       }
       &Name(_, _, _) => {
@@ -403,8 +403,10 @@ impl<'a> Parser<'a> {
     unimplemented!()
   }
 
-  fn parse_variable(&mut self) -> Result<ast::Value> {
-    unimplemented!()
+  // DONE
+  fn parse_variable(&mut self) -> Result<ast::Variable> {
+    next!(self);// Skip $
+    self.parse_name()
   }
 
   // DONE
