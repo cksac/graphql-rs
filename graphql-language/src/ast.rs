@@ -10,7 +10,7 @@ use source::Source;
 pub struct Location<'a> {
   pub start: usize,
   pub end: usize,
-  pub source: Option<&'a Source<'a>>
+  pub source: &'a Source<'a>,
 }
 
 /// All AST node types implement this trait.
@@ -31,7 +31,7 @@ macro_rules! impl_node_for {
 /// Name :: /[_A-Za-z][_0-9A-Za-z]*/
 pub struct Name<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: &'a str
+  pub value: &'a str,
 }
 
 impl_node_for! { Name }
@@ -39,7 +39,7 @@ impl_node_for! { Name }
 /// IntValue :: IntegerPart
 pub struct IntValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: &'a str
+  pub value: usize,
 }
 
 impl_node_for! { IntValue }
@@ -50,7 +50,7 @@ impl_node_for! { IntValue }
 ///   - IntegerPart FractionalPart ExponentPart
 pub struct FloatValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: &'a str
+  pub value: f64,
 }
 
 impl_node_for! { FloatValue }
@@ -60,15 +60,47 @@ impl_node_for! { FloatValue }
 ///   - `"` StringCharacter+ `"`
 pub struct StringValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: String
+  pub value: String,
 }
 
 impl_node_for! { StringValue }
 
+/// The root of the document, contains the Source and the Document node.
+pub struct Root<'a> {
+  pub source: Source<'a>,
+  pub document: Document<'a>,
+}
+
+impl<'a> Root<'a> {
+  pub fn new(src: Source<'a>) -> Self {
+    Root {
+      source: src,
+      document: Document {
+        loc: None,
+        definitions: Vec::new(),
+      },
+    }
+  }
+
+  // TODO Come up with a better way of doing this.
+  pub fn parse(mut self) -> super::Result<Self> {
+    {
+      use super::parser;
+      let parser = parser::Parser::new(&self.source);
+
+      for def in parser {
+        self.document.definitions.push(try!(def));
+      }
+      // why does parser not fall out of scope here?
+    }
+    Ok(self)
+  }
+}
+
 /// Document : Definition+
 pub struct Document<'a> {
   pub loc: Option<Location<'a>>,
-  pub definitions: Vec<Definition<'a>>
+  pub definitions: Vec<Definition<'a>>,
 }
 
 impl_node_for! { Document }
@@ -78,7 +110,7 @@ impl_node_for! { Document }
 ///   - FragmentDefinition
 pub enum Definition<'a> {
   Operation(OperationDefinition<'a>),
-  Fragment(FragmentDefinition<'a>)
+  Fragment(FragmentDefinition<'a>),
 }
 
 /// OperationDefinition :
@@ -90,7 +122,7 @@ pub struct OperationDefinition<'a> {
   pub name: Option<Name<'a>>,
   pub variable_definitions: Option<VariableDefinitions<'a>>,
   pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>
+  pub selection_set: SelectionSet<'a>,
 }
 
 impl_node_for! { OperationDefinition }
@@ -98,13 +130,13 @@ impl_node_for! { OperationDefinition }
 /// OperationType : one of query mutation
 pub enum OperationType {
   Query,
-  Mutation
+  Mutation,
 }
 
 /// SelectionSet : { Selection+ }
 pub struct SelectionSet<'a> {
   pub loc: Option<Location<'a>>,
-  pub selections: Vec<Selection<'a>>
+  pub selections: Vec<Selection<'a>>,
 }
 
 impl_node_for! { SelectionSet }
@@ -116,7 +148,7 @@ impl_node_for! { SelectionSet }
 pub enum Selection<'a> {
   Field(Field<'a>),
   FragmentSpread(FragmentSpread<'a>),
-  InlineFragment(InlineFragment<'a>)
+  InlineFragment(InlineFragment<'a>),
 }
 
 /// Field : Alias? Name Arguments? Directives? SelectionSet?
@@ -126,7 +158,7 @@ pub struct Field<'a> {
   pub name: Name<'a>,
   pub arguments: Option<Arguments<'a>>,
   pub directives: Option<Directives<'a>>,
-  pub selection_set: Option<SelectionSet<'a>>
+  pub selection_set: Option<SelectionSet<'a>>,
 }
 
 impl_node_for! { Field }
@@ -141,7 +173,7 @@ pub type Arguments<'a> = Vec<Argument<'a>>;
 pub struct Argument<'a> {
   pub loc: Option<Location<'a>>,
   pub name: Name<'a>,
-  pub value: Value<'a>
+  pub value: Value<'a>,
 }
 
 impl_node_for! { Argument }
@@ -150,7 +182,7 @@ impl_node_for! { Argument }
 pub struct FragmentSpread<'a> {
   pub loc: Option<Location<'a>>,
   pub name: Name<'a>,
-  pub directives: Option<Directives<'a>>
+  pub directives: Option<Directives<'a>>,
 }
 
 impl_node_for! { FragmentSpread }
@@ -160,7 +192,7 @@ pub struct InlineFragment<'a> {
   pub loc: Option<Location<'a>>,
   pub type_condition: Option<TypeCondition<'a>>,
   pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>
+  pub selection_set: SelectionSet<'a>,
 }
 
 impl_node_for! { InlineFragment }
@@ -171,7 +203,7 @@ pub struct FragmentDefinition<'a> {
   pub name: Name<'a>,
   pub type_condition: TypeCondition<'a>,
   pub directives: Option<Directives<'a>>,
-  pub selection_set: SelectionSet<'a>
+  pub selection_set: SelectionSet<'a>,
 }
 
 impl_node_for! { FragmentDefinition }
@@ -199,31 +231,26 @@ pub enum Value<'a> {
   Boolean(BooleanValue<'a>),
   Enum(EnumValue<'a>),
   List(ListValue<'a>),
-  Object(ObjectValue<'a>)
+  Object(ObjectValue<'a>),
 }
 
 /// BooleanValue : one of `true` `false`
 pub struct BooleanValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub value: bool
+  pub value: bool,
 }
 
 impl_node_for! { BooleanValue }
 
 /// EnumValue : Name but not `true`, `false` or `null`
-pub struct EnumValue<'a> {
-  pub loc: Option<Location<'a>>,
-  pub name: Name<'a>
-}
-
-impl_node_for! { EnumValue }
+pub type EnumValue<'a> = Name<'a>;
 
 /// ListValue[Const] :
 ///   - [ ]
 ///   - [ Value[?Const]+ ]
 pub struct ListValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub values: Vec<Value<'a>>
+  pub values: Vec<Value<'a>>,
 }
 
 impl_node_for! { ListValue }
@@ -233,7 +260,7 @@ impl_node_for! { ListValue }
 ///   - { ObjectField[?Const]+ }
 pub struct ObjectValue<'a> {
   pub loc: Option<Location<'a>>,
-  pub fields: Vec<ObjectField<'a>>
+  pub fields: Vec<ObjectField<'a>>,
 }
 
 impl_node_for! { ObjectValue }
@@ -242,7 +269,7 @@ impl_node_for! { ObjectValue }
 pub struct ObjectField<'a> {
   pub loc: Option<Location<'a>>,
   pub name: Name<'a>,
-  pub value: Value<'a>
+  pub value: Value<'a>,
 }
 
 impl_node_for! { ObjectField }
@@ -255,18 +282,13 @@ pub struct VariableDefinition<'a> {
   pub loc: Option<Location<'a>>,
   pub variable: Variable<'a>,
   pub type_: Type<'a>,
-  pub default_value: Option<DefaultValue<'a>>
+  pub default_value: Option<DefaultValue<'a>>,
 }
 
 impl_node_for! { VariableDefinition }
 
 /// Variable : $ Name
-pub struct Variable<'a> {
-  pub loc: Option<Location<'a>>,
-  pub name: Name<'a>
-}
-
-impl_node_for! { Variable }
+pub type Variable<'a> = Name<'a>;
 
 /// DefaultValue : = Value[Const]
 pub type DefaultValue<'a> = Value<'a>;
@@ -279,21 +301,16 @@ pub enum Type<'a> {
   Named(NamedType<'a>),
   List(Box<ListType<'a>>),
   NonNullNamed(Box<NonNullNamedType<'a>>),
-  NonNullList(Box<NonNullListType<'a>>)
+  NonNullList(Box<NonNullListType<'a>>),
 }
 
 /// NamedType : Name
-pub struct NamedType<'a> {
-  pub loc: Option<Location<'a>>,
-  pub name: Name<'a>
-}
-
-impl_node_for! { NamedType }
+pub type NamedType<'a> = Name<'a>;
 
 /// ListType : [ Type ]
 pub struct ListType<'a> {
   pub loc: Option<Location<'a>>,
-  pub type_: Type<'a>
+  pub type_: Type<'a>,
 }
 
 impl_node_for! { ListType }
@@ -310,7 +327,7 @@ impl_node_for! { ListType }
 /// [2]: https://github.com/graphql/graphql-js/blob/dfe676c3011efe9560b9fa0fcbd2b7bd87476d02/src/language/ast.js#L254
 pub struct NonNullNamedType<'a> {
   pub loc: Option<Location<'a>>,
-  pub type_: NamedType<'a>
+  pub type_: NamedType<'a>,
 }
 
 impl_node_for! { NonNullNamedType }
@@ -318,7 +335,7 @@ impl_node_for! { NonNullNamedType }
 /// See documentation for the `NonNullNamedType` struct.
 pub struct NonNullListType<'a> {
   pub loc: Option<Location<'a>>,
-  pub type_: ListType<'a>
+  pub type_: ListType<'a>,
 }
 
 impl_node_for! { NonNullListType }
@@ -330,7 +347,7 @@ pub type Directives<'a> = Vec<Directive<'a>>;
 pub struct Directive<'a> {
   pub loc: Option<Location<'a>>,
   pub name: Name<'a>,
-  pub arguments: Option<Arguments<'a>>
+  pub arguments: Option<Arguments<'a>>,
 }
 
 impl_node_for! { Directive }

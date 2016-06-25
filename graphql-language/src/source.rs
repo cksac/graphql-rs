@@ -1,37 +1,38 @@
+use std::borrow::Cow;
+use std::io::Error;
+use std::path::Path;
+
 static DEFAULT_SOURCE_NAME: &'static str = "GraphQL";
 
 #[derive(Debug)]
 pub struct Source<'a> {
-  pub name: &'a str,
-  pub body: &'a str,
+  pub name: Cow<'a, str>,
+  pub body: Cow<'a, str>,
 }
 
 impl<'a> Source<'a> {
-  pub fn new(body: &'a str) -> Self {
+  pub fn new<S: Into<Cow<'a, str>>>(body: S) -> Self {
     Source {
-      name: DEFAULT_SOURCE_NAME,
-      body: body,
+      name: DEFAULT_SOURCE_NAME.into(),
+      body: body.into(),
     }
   }
 
-  pub fn name(mut self, name: &'a str) -> Self {
-    self.name = name;
+  pub fn name<S: Into<Cow<'a, str>>>(mut self, name: S) -> Self {
+    self.name = name.into();
     self
   }
-}
 
-use std::io::Error;
-use std::path::Path;
+  pub fn from_file(path: &'a Path) -> Result<Source<'a>, Error> {
+    use std::fs::File;
+    use std::io::Read;
+    use std::ffi::OsStr;
 
-pub fn from_file<'a>(path: &'a Path, buf: &'a mut String) -> Result<Source<'a>, Error> {
-  use std::fs::File;
-  use std::io::Read;
-  use std::ffi::OsStr;
-
-  let mut f = try!(File::open(path.clone()));
-  try!(f.read_to_string(buf));
-  Ok(Source::new(buf.as_str()).name(path
-    .file_name()
-    .and_then(OsStr::to_str)
-    .unwrap_or(DEFAULT_SOURCE_NAME)))
+    let mut f = try!(File::open(path.clone()));
+    let mut buf = String::new();
+    try!(f.read_to_string(&mut buf));
+    Ok(Source::new(buf).name(path.file_name()
+                                 .and_then(OsStr::to_str)
+                                 .unwrap_or(DEFAULT_SOURCE_NAME)))
+  }
 }
