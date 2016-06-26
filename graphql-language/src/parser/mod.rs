@@ -27,8 +27,6 @@ macro_rules! is_next {
   });
 }
 
-// I need a better name for this,
-// but I will not write `self.lexer.peek().unwrap()` *every* time I call this!
 macro_rules! peek {
   ($parser: ident) => ({
     if let Ok(ref c) = *$parser.lexer.peek().unwrap() {
@@ -341,7 +339,37 @@ impl<'a> Parser<'a> {
     }))
   }
 
+  // DONE
   fn parse_variables(&mut self) -> Result<ast::VariableDefinitions> {
+    let mut vardefs = vec![];
+
+    if is_next!(self, Punctuator(LeftParen, _, _)) {
+      next!(self); // Skip paren
+      #[allow(bool_comparison)]
+      while is_next!(self, Punctuator(RightParen, _, _)) == false {
+        let mut loc = self.loc();
+        let var = try!(self.parse_variable());
+        let type_ = try!(self.parse_type());
+        let defval = if is_next!(self, Punctuator(Equals, _, _)) {
+          self.parse_value(true).ok()
+        } else {
+          None
+        };
+        loc.end = self.curr;
+
+        vardefs.push(ast::VariableDefinition {
+          loc: Some(loc),
+          variable: var,
+          type_: type_,
+          default_value: defval,
+        })
+      }
+    }
+
+    Ok(vardefs)
+  }
+
+  fn parse_type(&mut self) -> Result<ast::Type> {
     unimplemented!()
   }
 
