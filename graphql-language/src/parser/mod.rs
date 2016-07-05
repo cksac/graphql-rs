@@ -1,3 +1,4 @@
+//! TODO: Check that all skips work as intended and nothing is being left dangling!
 mod error;
 pub use self::error::Error;
 use std::result;
@@ -472,8 +473,25 @@ impl<'a> Parser<'a> {
     }
   }
 
+  // DONE
   fn parse_array(&mut self, is_const: bool) -> Result<ast::Value> {
-    unimplemented!()
+    let mut aloc = self.loc();
+    let mut vals = vec![];
+
+    if is_next!(self, Punctuator(LeftBracket, _, _)) {
+      next!(self); // Skip [
+      #[allow(bool_comparison)]
+      while is_next!(self, Punctuator(RightBracket, _, _)) == false {
+        vals.push(try!(self.parse_value(is_const)))
+      }
+      next!(self); // Skip ]
+    }
+
+    aloc.end = self.curr;
+    Ok(ast::Value::List(ast::ListValue {
+      loc: Some(aloc),
+      values: vals,
+    }))
   }
 
   fn parse_object(&mut self, is_const: bool) -> Result<ast::Value> {
