@@ -369,8 +369,56 @@ impl<'a> Parser<'a> {
     Ok(vardefs)
   }
 
+  // DONE
+  fn parse_list_type(&mut self) -> Result<ast::ListType> {
+    let mut loc = self.loc();
+    next!(self); // Skip [
+    let t = try!(self.parse_type());
+    if is_next!(self, Punctuator(RightBracket, _, _)) {
+      next!(self); // Skip ]
+      loc.end = self.curr;
+      Ok(ast::ListType {
+        loc: Some(loc),
+        type_: t,
+      })
+    } else {
+      Err(Error::MissingExpectedToken)
+    }
+  }
+
+  // DONE
   fn parse_type(&mut self) -> Result<ast::Type> {
-    unimplemented!()
+    let mut loc = self.loc();
+
+    if is_next!(self, Punctuator(LeftBracket, _, _)) {
+      // List Type
+      let l = try!(self.parse_list_type());
+      if is_next!(self, Punctuator(Bang, _, _)) {
+        // NonNull Type!
+        next!(self); // Skip !
+        loc.end = self.curr;
+        Ok(ast::Type::NonNullList(Box::new(ast::NonNullListType {
+          loc: Some(loc),
+          type_: l,
+        })))
+      } else {
+        Ok(ast::Type::List(Box::new(l)))
+      }
+    } else {
+      // Named Type
+      let t = try!(self.parse_name());
+      if is_next!(self, Punctuator(Bang, _, _)) {
+        // NonNull Type!
+        next!(self); // Skip !
+        loc.end = self.curr;
+        Ok(ast::Type::NonNullNamed(ast::NonNullNamedType {
+          loc: Some(loc),
+          type_: t,
+        }))
+      } else {
+        Ok(ast::Type::Named(t))
+      }
+    }
   }
 
   // DONE
@@ -456,7 +504,13 @@ impl<'a> Parser<'a> {
     }))
   }
 
+  // DONE? questionable, IDK... fragments are hard, or dumb... More Research is needed!
   fn parse_type_condition(&mut self) -> Result<ast::TypeCondition> {
-    unimplemented!()
+    if is_next!(self, Name("on", _, _)) {
+      next!(self);
+      Ok(try!(self.parse_name()))
+    } else {
+      Err(Error::ExpectedValueNotFound)
+    }
   }
 }

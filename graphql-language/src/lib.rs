@@ -1,3 +1,4 @@
+#![feature(stmt_expr_attributes)]
 #![allow(unused_variables, unknown_lints)]
 pub mod ast;
 mod error;

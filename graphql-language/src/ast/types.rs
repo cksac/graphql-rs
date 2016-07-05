@@ -7,7 +7,7 @@ use super::*;
 pub enum Type {
   Named(NamedType),
   List(Box<ListType>),
-  NonNullNamed(Box<NonNullNamedType>),
+  NonNullNamed(NonNullNamedType),
   NonNullList(Box<NonNullListType>),
 }
 
