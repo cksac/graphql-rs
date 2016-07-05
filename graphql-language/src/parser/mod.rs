@@ -1,4 +1,6 @@
-//! TODO: Check that all skips work as intended and nothing is being left dangling!
+//! TODO:
+//! - Check that all skips work as intended and nothing is being left dangling!
+//! - Check the loc for all the things
 mod error;
 pub use self::error::Error;
 use std::result;
@@ -119,7 +121,6 @@ impl<'a> Parser<'a> {
     })
   }
 
-  // TODO Check the loc for all the things
   fn loc(&self) -> ast::Location {
     ast::Location {
       start: self.prev,
