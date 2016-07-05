@@ -9,16 +9,18 @@ pub enum Error {
   UnexpectedToken,
   MissingExpectedToken,
   ExpectedValueNotFound,
+  DuplicateInputObjectField,
 }
 
 impl fmt::Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match *self {
-      Error::Eof => write!(f, "bad"),
-      Error::UnkownOperation => write!(f, "bad"),
-      Error::UnexpectedToken => write!(f, "bad"),
-      Error::MissingExpectedToken => write!(f, "bad"),
+      Error::Eof => write!(f, "End of File!"),
+      Error::UnkownOperation => write!(f, "What is this Operation?"),
+      Error::UnexpectedToken => write!(f, "This token was not expected!"),
+      Error::MissingExpectedToken => write!(f, "There should of been a token here"),
       Error::ExpectedValueNotFound => write!(f, "No value?"),
+      Error::DuplicateInputObjectField => write!(f, "Duplicate input object field"),
     }
   }
 }
@@ -31,6 +33,7 @@ impl error::Error for Error {
       Error::UnexpectedToken => "This token was not expected",
       Error::MissingExpectedToken => "There should of been a token here",
       Error::ExpectedValueNotFound => "No value?",
+      Error::DuplicateInputObjectField => "Duplicate input object field",
     }
   }
 

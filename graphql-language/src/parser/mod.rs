@@ -476,7 +476,7 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_array(&mut self, is_const: bool) -> Result<ast::Value> {
-    let mut aloc = self.loc();
+    let mut loc = self.loc();
     let mut vals = vec![];
 
     if is_next!(self, Punctuator(LeftBracket, _, _)) {
@@ -488,15 +488,52 @@ impl<'a> Parser<'a> {
       next!(self); // Skip ]
     }
 
-    aloc.end = self.curr;
+    loc.end = self.curr;
     Ok(ast::Value::List(ast::ListValue {
-      loc: Some(aloc),
+      loc: Some(loc),
       values: vals,
     }))
   }
 
+  // DONE
   fn parse_object(&mut self, is_const: bool) -> Result<ast::Value> {
-    unimplemented!()
+    let mut loc = self.loc();
+    let mut vals = vec![];
+
+    if is_next!(self, Punctuator(LeftBrace, _, _)) {
+      next!(self); // Skip {
+      let mut names = vec![];
+      #[allow(bool_comparison)]
+      while is_next!(self, Punctuator(RightBrace, _, _)) == false {
+        vals.push(try!(self.parse_object_field(is_const, &mut names)))
+      }
+      next!(self); // Skip }
+    }
+
+    loc.end = self.curr;
+    Ok(ast::Value::Object(ast::ObjectValue {
+      loc: Some(loc),
+      fields: vals,
+    }))
+  }
+
+  // DONE
+  fn parse_object_field(&mut self, is_const: bool, field_names: &mut Vec<String>) -> Result<ast::ObjectField> {
+    let mut loc = self.loc();
+    let name = try!(self.parse_name());
+
+    if field_names.contains(&name.value) {
+      return Err(Error::DuplicateInputObjectField);
+    }
+    field_names.push(name.value.clone());
+
+    let val = try!(self.parse_value(is_const));
+    loc.end = self.curr;
+    Ok(ast::ObjectField {
+      loc: Some(loc),
+      name: name,
+      value: val,
+    })
   }
 
   // DONE
