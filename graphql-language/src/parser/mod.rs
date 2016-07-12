@@ -498,10 +498,10 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_array(&mut self, is_const: bool) -> Result<ast::Value> {
-    let mut loc = self.loc();
-    let mut vals = vec![];
-
     if is_next!(self, Punctuator(LeftBracket, _, _)) {
+      let mut loc = self.loc();
+      let mut vals = vec![];
+
       next!(self); // Skip '['
 
       #[allow(bool_comparison)]
@@ -510,13 +510,16 @@ impl<'a> Parser<'a> {
       }
 
       next!(self); // Skip ']'
-    }
 
-    loc.end = self.curr;
-    Ok(ast::Value::List(ast::ListValue {
-      loc: Some(loc),
-      values: vals,
-    }))
+      loc.end = self.curr;
+      Ok(ast::Value::List(ast::ListValue {
+        loc: Some(loc),
+        values: vals,
+      }))
+    } else {
+      // Expected '[' not found!
+      Err(Error::MissingExpectedToken)
+    }
   }
 
   // DONE
