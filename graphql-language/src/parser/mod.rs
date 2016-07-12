@@ -4,6 +4,7 @@
 mod error;
 pub use self::error::Error;
 use std::result;
+use std::error::Error as StdErr;
 pub type Result<T> = result::Result<T, Error>;
 
 use ast;
@@ -32,11 +33,11 @@ macro_rules! is_next {
 
 macro_rules! peek {
   ($parser: ident) => ({
-    if let Ok(ref c) = *$parser.lexer.peek().unwrap() {
-      c
-    } else {
-      // TODO Remember what this is and make it not panic?
-      panic!("ERROR!")
+    match *$parser.lexer.peek().unwrap() {
+      Ok(ref c) => c,
+      Err(ref e) => {
+        panic!("{}", e.description());
+      },
     }
   })
 }
@@ -46,7 +47,7 @@ macro_rules! next {
     let t = $parser.lexer.next().unwrap().unwrap();
     match t {
       Eof => {
-        return Err(Error::Eof);
+        return Err(Error::UnexpectedEof);
       },
       Punctuator (_, _, hi) |
       Name       (_, _, hi) |
@@ -96,7 +97,7 @@ impl<'a> Parser<'a> {
     let mut loc = ast::Location {
       start: match *peek!(parser) {
         Eof => {
-          return Err(Error::Eof);
+          return Err(Error::UnexpectedEof);
         }
         Punctuator(_, lo, _) |
         Name(_, lo, _) |
