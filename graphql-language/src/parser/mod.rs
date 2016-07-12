@@ -151,8 +151,8 @@ impl<'a> Parser<'a> {
   fn parse_short_operation(&mut self) -> Result<ast::Definition> {
     let mut loc = self.loc();
     let selections = try!(self.parse_selection_set());
-    loc.end = self.curr;
 
+    loc.end = self.curr;
     Ok(ast::Definition::Operation(ast::OperationDefinition {
       loc: Some(loc),
       operation: ast::OperationType::Query,
@@ -353,6 +353,7 @@ impl<'a> Parser<'a> {
 
     if is_next!(self, Punctuator(LeftParen, _, _)) {
       next!(self); // Skip '('
+
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightParen, _, _)) == false {
         let mut loc = self.loc();
@@ -363,8 +364,8 @@ impl<'a> Parser<'a> {
         } else {
           None
         };
-        loc.end = self.curr;
 
+        loc.end = self.curr;
         vardefs.push(ast::VariableDefinition {
           loc: Some(loc),
           variable: var,
@@ -381,6 +382,7 @@ impl<'a> Parser<'a> {
   fn parse_list_type(&mut self) -> Result<ast::ListType> {
       let mut loc = self.loc();
       next!(self); // Skip '['
+
     let t = try!(self.parse_type());
     if is_next!(self, Punctuator(RightBracket, _, _)) {
       next!(self); // Skip ']'
@@ -488,10 +490,12 @@ impl<'a> Parser<'a> {
 
     if is_next!(self, Punctuator(LeftBracket, _, _)) {
       next!(self); // Skip '['
+
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightBracket, _, _)) == false {
         vals.push(try!(self.parse_value(is_const)))
       }
+
       next!(self); // Skip ']'
     }
 
@@ -509,11 +513,13 @@ impl<'a> Parser<'a> {
 
     if is_next!(self, Punctuator(LeftBrace, _, _)) {
       next!(self); // Skip '{'
+
       let mut names = vec![];
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightBrace, _, _)) == false {
         vals.push(try!(self.parse_object_field(is_const, &mut names)))
       }
+
       next!(self); // Skip '}'
     }
 
@@ -535,6 +541,7 @@ impl<'a> Parser<'a> {
     field_names.push(name.value.clone());
 
     let val = try!(self.parse_value(is_const));
+
     loc.end = self.curr;
     Ok(ast::ObjectField {
       loc: Some(loc),
