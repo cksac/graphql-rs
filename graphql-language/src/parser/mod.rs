@@ -119,12 +119,12 @@ impl<'a> Parser<'a> {
 
     let mut defs = vec![];
 
-    while is_next!(parser, Eof) != true {
+    #[allow(bool_comparison)]
+    while is_next!(parser, Eof) == false {
       defs.push(try!(parser.parse_definition()));
     }
 
     loc.end = parser.curr;
-
     Ok(ast::Document {
       loc: Some(loc),
       definitions: defs,
