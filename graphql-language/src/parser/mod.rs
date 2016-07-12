@@ -390,12 +390,14 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_list_type(&mut self) -> Result<ast::ListType> {
+    if is_next!(self, Punctuator(LeftBracket, _, _)) {
       let mut loc = self.loc();
       next!(self); // Skip '['
 
-    let t = try!(self.parse_type());
-    if is_next!(self, Punctuator(RightBracket, _, _)) {
+      let t = try!(self.parse_type());
+
       next!(self); // Skip ']'
+
       loc.end = self.curr;
       Ok(ast::ListType {
         loc: Some(loc),
