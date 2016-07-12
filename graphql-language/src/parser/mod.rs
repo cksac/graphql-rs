@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
   fn parse_selection_set(&mut self) -> Result<ast::SelectionSet> {
     if is_next!(self, Punctuator(LeftBrace, _, _)) {
       let mut loc = self.loc();
-      let mut selections = Vec::new();
+      let mut selections = vec![];
       next!(self); // Required to skip the start brace.
 
       loop {
@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
   // DONE
   fn parse_arguments(&mut self) -> Result<ast::Arguments> {
     if is_next!(self, Punctuator(LeftParen, _, _)) {
-      let mut args = Vec::new();
+      let mut args = vec![];
       next!(self); // Required to skip the start paren.
 
       loop {
