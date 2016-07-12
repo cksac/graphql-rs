@@ -87,6 +87,15 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+  fn loc(&self) -> ast::Location {
+    ast::Location {
+      start: self.prev,
+      end: self.curr,
+    }
+  }
+
+  // Parser Bits
+
   pub fn parse(src: &'a str) -> Result<ast::Document> {
     let mut parser = Parser {
       lexer: Lexer::new(src).peekable(),
@@ -121,15 +130,6 @@ impl<'a> Parser<'a> {
       definitions: defs,
     })
   }
-
-  fn loc(&self) -> ast::Location {
-    ast::Location {
-      start: self.prev,
-      end: self.curr,
-    }
-  }
-
-  // Parser Bits
 
   // DONE
   fn parse_definition(&mut self) -> Result<ast::Definition> {
