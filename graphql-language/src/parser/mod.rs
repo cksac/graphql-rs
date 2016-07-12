@@ -524,10 +524,10 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_object(&mut self, is_const: bool) -> Result<ast::Value> {
-    let mut loc = self.loc();
-    let mut vals = vec![];
-
     if is_next!(self, Punctuator(LeftBrace, _, _)) {
+      let mut loc = self.loc();
+      let mut vals = vec![];
+
       next!(self); // Skip '{'
 
       let mut names = vec![];
@@ -537,13 +537,16 @@ impl<'a> Parser<'a> {
       }
 
       next!(self); // Skip '}'
-    }
 
-    loc.end = self.curr;
-    Ok(ast::Value::Object(ast::ObjectValue {
-      loc: Some(loc),
-      fields: vals,
-    }))
+      loc.end = self.curr;
+      Ok(ast::Value::Object(ast::ObjectValue {
+        loc: Some(loc),
+        fields: vals,
+      }))
+    } else {
+      // Missing Expected '{'
+      Err(Error::MissingExpectedToken)
+    }
   }
 
   // DONE
