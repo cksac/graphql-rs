@@ -67,7 +67,7 @@ macro_rules! value {
     match next!($parser) {
       Eof | Punctuator(_,_,_) => {
         // TODO Find which error fits this better
-        return Err(Error::ExpectedValueNotFound);//Err("NO VALUE!");
+        return Err(Error::ExpectedValueNotFound);// NO VALUE!
       },
       Name       (v, _, _) |
       IntValue   (v, _, _) |
@@ -189,7 +189,8 @@ impl<'a> Parser<'a> {
         loc: Some(loc),
       })
     } else {
-      Err(Error::MissingExpectedToken)//"Expected Left Brace not found!")
+      // Expected Left Brace not found!
+      Err(Error::MissingExpectedToken)
     }
   }
 
@@ -201,12 +202,13 @@ impl<'a> Parser<'a> {
       let ret = try!(self.parse_name());
 
       if is_next!(self, Punctuator(Colon, _, _)) {
-        next!(self); // Skip colon.
+        next!(self); // Skip ':'
         (Some(ret),
          if is_next!(self, Name(_, _, _)) {
           try!(self.parse_name())
         } else {
-          return Err(Error::MissingExpectedToken);//"Expected Name after colon"); // BAIL OUT!
+          // Expected Name after colon
+          return Err(Error::MissingExpectedToken);
         })
       } else {
         (None, ret)
@@ -237,7 +239,8 @@ impl<'a> Parser<'a> {
         value: v.into(),
       })
     } else {
-      Err(Error::MissingExpectedToken)//"Expected a name!")
+      // Expected a name!
+      Err(Error::MissingExpectedToken)
     }
   }
 
@@ -263,7 +266,8 @@ impl<'a> Parser<'a> {
                 })
               }
               _ => {
-                return Err(Error::MissingExpectedToken);//"Expected Value after colon");
+                // Expected Value after ';'
+                return Err(Error::MissingExpectedToken);
               }
             }
           }
@@ -278,7 +282,8 @@ impl<'a> Parser<'a> {
 
       Ok(args)
     } else {
-      Err(Error::MissingExpectedToken)//"Expected Left Paren not found!")
+      // Expected '(' not found!
+      Err(Error::MissingExpectedToken)
     }
   }
 
@@ -346,7 +351,7 @@ impl<'a> Parser<'a> {
     let mut vardefs = vec![];
 
     if is_next!(self, Punctuator(LeftParen, _, _)) {
-      next!(self); // Skip paren
+      next!(self); // Skip '('
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightParen, _, _)) == false {
         let mut loc = self.loc();
@@ -373,17 +378,18 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_list_type(&mut self) -> Result<ast::ListType> {
-    let mut loc = self.loc();
-    next!(self); // Skip [
+      let mut loc = self.loc();
+      next!(self); // Skip '['
     let t = try!(self.parse_type());
     if is_next!(self, Punctuator(RightBracket, _, _)) {
-      next!(self); // Skip ]
+      next!(self); // Skip ']'
       loc.end = self.curr;
       Ok(ast::ListType {
         loc: Some(loc),
         type_: t,
       })
     } else {
+      // Missing Expected '['
       Err(Error::MissingExpectedToken)
     }
   }
@@ -397,7 +403,7 @@ impl<'a> Parser<'a> {
       let l = try!(self.parse_list_type());
       if is_next!(self, Punctuator(Bang, _, _)) {
         // NonNull Type!
-        next!(self); // Skip !
+        next!(self); // Skip '!'
         loc.end = self.curr;
         Ok(ast::Type::NonNullList(Box::new(ast::NonNullListType {
           loc: Some(loc),
@@ -411,7 +417,7 @@ impl<'a> Parser<'a> {
       let t = try!(self.parse_name());
       if is_next!(self, Punctuator(Bang, _, _)) {
         // NonNull Type!
-        next!(self); // Skip !
+        next!(self); // Skip '!'
         loc.end = self.curr;
         Ok(ast::Type::NonNullNamed(ast::NonNullNamedType {
           loc: Some(loc),
@@ -446,7 +452,7 @@ impl<'a> Parser<'a> {
             }))
           }
           e if e != "null" => Ok(ast::Value::Enum(name)),
-          _ => Err(Error::ExpectedValueNotFound),//"Unexpected null"),
+          _ => Err(Error::ExpectedValueNotFound),// Unexpected null
         }
       }
       IntValue(_, _, _) => {
@@ -470,7 +476,7 @@ impl<'a> Parser<'a> {
           value: val,
         }))
       }
-      _ => Err(Error::UnexpectedToken),//"Unexpected"),
+      _ => Err(Error::UnexpectedToken), // Unexpected
     }
   }
 
@@ -480,12 +486,12 @@ impl<'a> Parser<'a> {
     let mut vals = vec![];
 
     if is_next!(self, Punctuator(LeftBracket, _, _)) {
-      next!(self); // Skip [
+      next!(self); // Skip '['
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightBracket, _, _)) == false {
         vals.push(try!(self.parse_value(is_const)))
       }
-      next!(self); // Skip ]
+      next!(self); // Skip ']'
     }
 
     loc.end = self.curr;
@@ -501,13 +507,13 @@ impl<'a> Parser<'a> {
     let mut vals = vec![];
 
     if is_next!(self, Punctuator(LeftBrace, _, _)) {
-      next!(self); // Skip {
+      next!(self); // Skip '{'
       let mut names = vec![];
       #[allow(bool_comparison)]
       while is_next!(self, Punctuator(RightBrace, _, _)) == false {
         vals.push(try!(self.parse_object_field(is_const, &mut names)))
       }
-      next!(self); // Skip }
+      next!(self); // Skip '}'
     }
 
     loc.end = self.curr;
@@ -538,7 +544,7 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_variable(&mut self) -> Result<ast::Variable> {
-    next!(self);// Skip $
+    next!(self);// Skip '$'
     self.parse_name()
   }
 
