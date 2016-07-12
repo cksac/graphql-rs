@@ -355,9 +355,8 @@ impl<'a> Parser<'a> {
 
   // DONE
   fn parse_variables(&mut self) -> Result<ast::VariableDefinitions> {
-    let mut vardefs = vec![];
-
     if is_next!(self, Punctuator(LeftParen, _, _)) {
+      let mut vardefs = vec![];
       next!(self); // Skip '('
 
       #[allow(bool_comparison)]
@@ -366,6 +365,7 @@ impl<'a> Parser<'a> {
         let var = try!(self.parse_variable());
         let type_ = try!(self.parse_type());
         let defval = if is_next!(self, Punctuator(Equals, _, _)) {
+          next!(self); // Skip '='
           self.parse_value(true).ok()
         } else {
           None
@@ -379,9 +379,13 @@ impl<'a> Parser<'a> {
           default_value: defval,
         })
       }
-    }
 
-    Ok(vardefs)
+      next!(self); // Skip ')'
+      Ok(vardefs)
+    } else {
+      // Missing Expected '('
+      Err(Error::MissingExpectedToken)
+    }
   }
 
   // DONE
