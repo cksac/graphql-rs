@@ -425,7 +425,7 @@ impl<'a> Parser<'a> {
       } else {
         Ok(ast::Type::List(Box::new(l)))
       }
-    } else {
+    } else if is_next!(self, Name(_, _, _)) {
       // Named Type
       let t = try!(self.parse_name());
       if is_next!(self, Punctuator(Bang, _, _)) {
@@ -439,6 +439,9 @@ impl<'a> Parser<'a> {
       } else {
         Ok(ast::Type::Named(t))
       }
+    } else {
+      // Missing name or '['
+      Err(Error::MissingExpectedToken)
     }
   }
 
