@@ -200,11 +200,11 @@ impl<'a> Parser<'a> {
     let mut loc = self.loc();
 
     let (alias, name) = {
-      let ret = try!(self.parse_name());
+      let alias_or_name = try!(self.parse_name());
 
       if is_next!(self, Punctuator(Colon, _, _)) {
         next!(self); // Skip ':'
-        (Some(ret),
+        (Some(alias_or_name), // alias
          if is_next!(self, Name(_, _, _)) {
           try!(self.parse_name())
         } else {
@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
           return Err(Error::MissingExpectedToken);
         })
       } else {
-        (None, ret)
+        (None, alias_or_name) // name
       }
     };
 
