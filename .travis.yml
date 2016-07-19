@@ -1,7 +1,6 @@
 sudo: false
 language: rust
 rust:
-  - stable
   - nightly
 os:
   - linux
@@ -10,7 +9,13 @@ cache:
   directories:
     - $HOME/.cargo
 script:
-  - cd graphql && cargo test
-  - cd graphql-language && cargo test
+  - |
+    cd graphql
+    cargo build &&
+    cargo test
+  - |
+    cd graphql-language
+    cargo build &&
+    cargo test
 notifications:
   email: false
