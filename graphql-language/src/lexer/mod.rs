@@ -119,7 +119,7 @@ fn scan_name<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
 }
 
 fn scan_number<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
-  take!(lexer, '+' | '-');
+  take!(lexer, '-');
   // Integer part
   if take!(lexer, '1'...'9') {
     take_while!(lexer, '0'...'9');
