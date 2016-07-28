@@ -147,6 +147,8 @@ fn lexes_bad_number() {
   assert_error("1.A", Error::InvalidFloat);
   assert_error("-A", Error::InvalidInt);
   assert_error("1.0e", Error::InvalidFloat);
+  assert_error("1.0e-", Error::InvalidFloat);
+  assert_error("1.0e+", Error::InvalidFloat);
   assert_error("1.0eA", Error::InvalidFloat);
 }
 
@@ -170,7 +172,9 @@ fn lexes_punctuation() {
 #[test]
 fn lexes_unexpected_chars() {
   assert_error(".", Error::UnxepectedChar);
-  assert_error(".", Error::UnxepectedChar);
+  assert_error("..", Error::UnxepectedChar);
+  assert_error(".A", Error::UnxepectedChar);
+  assert_error("..A", Error::UnxepectedChar);
   assert_error("?", Error::UnxepectedChar);
   assert_error("\u{203B}", Error::UnxepectedChar);
   assert_error("\u{203b}", Error::UnxepectedChar);
