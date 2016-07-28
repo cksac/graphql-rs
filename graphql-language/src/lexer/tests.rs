@@ -1,91 +1,178 @@
 
 use super::Punctuator::*;
 use super::Token::*;
-use super::{Lexer, Token};
+use super::{Lexer, Token, Error};
 
-fn test_next_token(lexer: &mut Lexer, expected: Token) {
-  let next = lexer.next();
-  assert_eq!(next, Some(Ok(expected)));
+trait Assert {
+  fn next_is_token(&mut self, expected: Token);
+  fn next_is_error(&mut self, expected: Error);
 }
 
-fn test_with_lex(input: &str, expeced: Token) {
-  let mut lexer = Lexer::new(&input);
-  test_next_token(&mut lexer, expeced);
+impl<'a> Assert for Lexer<'a> {
+  fn next_is_token(&mut self, expected: Token) {
+    assert_eq!(self.next(), Some(Ok(expected)));
+  }
+
+  fn next_is_error(&mut self, expected: Error) {
+    assert_eq!(self.next(), Some(Err(expected)));
+  }
 }
 
-#[test]
-fn test_string() {
-  test_with_lex("\"simple\"", StringValue("simple".to_string(), 1, 7));
-  test_with_lex("\" white space \"",
-                StringValue(" white space ".to_string(), 1, 14));
-  test_with_lex("\"quote \\\"\"", StringValue("quote \"".to_string(), 1, 9));
-  test_with_lex("\"escaped \\n\\r\\b\\t\\f\"",
-                StringValue("escaped \n\r\x08\t\x0c".to_string(), 1, 19));
-  test_with_lex("\"slashes \\\\ \\/\"",
-                StringValue("slashes \\ /".to_string(), 1, 14));
-  test_with_lex("\"unicode \\u1234\\u5678\\u90AB\\uCDEF\"",
-                StringValue("unicode \u{1234}\u{5678}\u{90ab}\u{cdef}".to_string(),
-                            1,
-                            33));
-  test_with_lex("\"Has a фы世界 multi-byte character.\"",
-                StringValue("Has a фы世界 multi-byte character.".to_string(), 1, 39));
+fn assert_token(input: &str, expected: Token) {
+  let mut lexer = Lexer::new(input);
+  lexer.next_is_token(expected);
+}
+
+fn assert_error(input: &str, expected: Error) {
+  let mut lexer = Lexer::new(input);
+  lexer.next_is_error(expected);
 }
 
 #[test]
-fn test_name() {
-  let mut lexer = Lexer::new("     name1    name2   \"simple\" \"  white space   \" other_name");
-  test_next_token(&mut lexer, Name("name1", 5, 10));
-  test_next_token(&mut lexer, Name("name2", 14, 19));
-  test_next_token(&mut lexer, StringValue("simple".to_string(), 23, 29));
-  test_next_token(&mut lexer,
-                  StringValue("  white space   ".to_string(), 32, 48));
-  test_next_token(&mut lexer, Name("other_name", 50, 60));
-  test_next_token(&mut lexer, Eof);
-  assert_eq!(None, lexer.next());
+fn disallows_unsupported_control_chars() {
+  assert_error("\u{0007}", Error::UnxepectedChar);
 }
 
 #[test]
-fn test_number() {
-  let mut lexer = Lexer::new("-9 0 9 -0 -9 1234 -1234 0.0 -0.0 1.0 -1.012 -0.101 1.0e2 -1.0E2 \
-                              0.00e-002 -0.00E+002 9.1E+0");
-  test_next_token(&mut lexer, IntValue("-9", 0, 2));
-  test_next_token(&mut lexer, IntValue("0", 3, 4));
-  test_next_token(&mut lexer, IntValue("9", 5, 6));
-  test_next_token(&mut lexer, IntValue("-0", 7, 9));
-  test_next_token(&mut lexer, IntValue("-9", 10, 12));
-  test_next_token(&mut lexer, IntValue("1234", 13, 17));
-  test_next_token(&mut lexer, IntValue("-1234", 18, 23));
-  test_next_token(&mut lexer, FloatValue("0.0", 24, 27));
-  test_next_token(&mut lexer, FloatValue("-0.0", 28, 32));
-  test_next_token(&mut lexer, FloatValue("1.0", 33, 36));
-  test_next_token(&mut lexer, FloatValue("-1.012", 37, 43));
-  test_next_token(&mut lexer, FloatValue("-0.101", 44, 50));
-  test_next_token(&mut lexer, FloatValue("1.0e2", 51, 56));
-  test_next_token(&mut lexer, FloatValue("-1.0E2", 57, 63));
-  test_next_token(&mut lexer, FloatValue("0.00e-002", 64, 73));
-  test_next_token(&mut lexer, FloatValue("-0.00E+002", 74, 84));
-  test_next_token(&mut lexer, FloatValue("9.1E+0", 85, 91));
-  test_next_token(&mut lexer, Eof);
-  assert_eq!(None, lexer.next());
+fn accepts_bom_header() {
+  assert_token("\u{feff} foo", Name("foo", 4, 7));
 }
 
 #[test]
-fn test_symbol() {
-  let mut lexer = Lexer::new("@ !  :$ =    [  {   (|] } )      ... ...");
-  test_next_token(&mut lexer, Punctuator(At, 0, 1));
-  test_next_token(&mut lexer, Punctuator(Bang, 2, 3));
-  test_next_token(&mut lexer, Punctuator(Colon, 5, 6));
-  test_next_token(&mut lexer, Punctuator(Dollar, 6, 7));
-  test_next_token(&mut lexer, Punctuator(Equals, 8, 9));
-  test_next_token(&mut lexer, Punctuator(LeftBracket, 13, 14));
-  test_next_token(&mut lexer, Punctuator(LeftBrace, 16, 17));
-  test_next_token(&mut lexer, Punctuator(LeftParen, 20, 21));
-  test_next_token(&mut lexer, Punctuator(Pipe, 21, 22));
-  test_next_token(&mut lexer, Punctuator(RightBracket, 22, 23));
-  test_next_token(&mut lexer, Punctuator(RightBrace, 24, 25));
-  test_next_token(&mut lexer, Punctuator(RightParen, 26, 27));
-  test_next_token(&mut lexer, Punctuator(Spread, 33, 36));
-  test_next_token(&mut lexer, Punctuator(Spread, 37, 40));
-  test_next_token(&mut lexer, Eof);
-  assert_eq!(None, lexer.next());
+fn skips_ignored_chars() {
+  assert_token("
+
+    foo
+
+",
+               Name("foo", 6, 9));
+
+  assert_token("
+    #comment
+    foo#comment
+",
+               Name("foo", 18, 21));
+
+  assert_token(",,,foo,,,", Name("foo", 3, 6));
+  assert_token("", Eof);
+}
+
+#[test]
+fn lexes_names() {
+  assert_token("simple", Name("simple", 0, 6));
+  assert_token("Capital", Name("Capital", 0, 7));
+  assert_token("camelName", Name("camelName", 0, 9));
+  assert_token("snake_name", Name("snake_name", 0, 10));
+}
+
+#[test]
+fn lexes_bad_names() {
+  let mut lexer = Lexer::new("a-b");
+  lexer.next_is_token(Name("a", 0, 1));
+  lexer.next_is_error(Error::InvalidInt);
+  //TODO: fix error cases to advance lexer.iter
+  //lexer.next_is_token(Eof);
+}
+
+#[test]
+fn lexes_string() {
+  assert_token("\"simple\"", StringValue("simple".into(), 1, 7));
+  assert_token("\" white space \"",
+               StringValue(" white space ".into(), 1, 14));
+  assert_token("\"quote \\\"\"", StringValue(r#"quote ""#.into(), 1, 9));
+  assert_token("\"escaped \\n\\r\\b\\t\\f\"",
+               StringValue("escaped \n\r\x08\t\x0c".into(), 1, 19));
+  assert_token("\"slashes \\\\ \\/\"",
+               StringValue(r#"slashes \ /"#.into(), 1, 14));
+  assert_token("\"unicode \\u1234\\u5678\\u90AB\\uCDEF\"",
+               StringValue("unicode \u{1234}\u{5678}\u{90ab}\u{cdef}".into(), 1, 33));
+  assert_token("\"unicode фы世界\"",
+               StringValue("unicode фы世界".into(), 1, 19));
+  assert_token("\"фы世界\"", StringValue("фы世界".into(), 1, 11));
+}
+
+#[test]
+fn lexes_bad_string() {
+  assert_error("\"", Error::UnterminatedString);
+  assert_error("\"no end quote", Error::UnterminatedString);
+  //TODO: fix scan_string
+  //assert_error("\"contains unescaped \u{0007} control char\"", Error::UnxepectedChar);
+  //assert_error("\"null-byte is not \u{0000} end of file\"", Error::UnxepectedChar);
+  assert_error("\"multi\nline\"", Error::UnterminatedString);
+  assert_error("\"multi\rline\"", Error::UnterminatedString);
+  assert_error("\"bad \\u123", Error::UnterminatedString);
+  assert_error("\"bad \\z esc\"", Error::BadEscape);
+  assert_error("\"bad \\u1 esc\"", Error::BadUnicodeEscape);
+  assert_error("\"bad \\u0XX1 esc\"", Error::BadUnicodeEscape);
+  assert_error("\"bad \\uXXXX esc\"", Error::BadUnicodeEscape);
+  assert_error("\"bфы世ыы𠱸d \\uXXXF esc\"", Error::BadUnicodeEscape);
+}
+
+#[test]
+fn lexes_number() {
+  assert_token("0", IntValue("0", 0, 1));
+  assert_token("9", IntValue("9", 0, 1));
+  assert_token("4", IntValue("4", 0, 1));
+  assert_token("-4", IntValue("-4", 0, 2));
+  assert_token("0.0", FloatValue("0.0", 0, 3));
+  assert_token("-0.0", FloatValue("-0.0", 0, 4));
+  assert_token("4.123", FloatValue("4.123", 0, 5));
+  assert_token("-4.123", FloatValue("-4.123", 0, 6));
+  assert_token("0.123", FloatValue("0.123", 0, 5));
+  assert_token("0.0123", FloatValue("0.0123", 0, 6));
+  assert_token("123e4", FloatValue("123e4", 0, 5));
+  assert_token("123E4", FloatValue("123E4", 0, 5));
+  assert_token("123E-4", FloatValue("123E-4", 0, 6));
+  assert_token("123E+4", FloatValue("123E+4", 0, 6));
+  assert_token("-1.123e4", FloatValue("-1.123e4", 0, 8));
+  assert_token("-1.123E4", FloatValue("-1.123E4", 0, 8));
+  assert_token("-1.123e-4", FloatValue("-1.123e-4", 0, 9));
+  assert_token("-1.123E+4", FloatValue("-1.123E+4", 0, 9));
+  assert_token("-1.123e4567", FloatValue("-1.123e4567", 0, 11));
+  assert_token("1e0", FloatValue("1e0", 0, 3));
+  assert_token("0e0", FloatValue("0e0", 0, 3));
+  assert_token("1e00", FloatValue("1e00", 0, 4));
+  assert_token("1e-0", FloatValue("1e-0", 0, 4));
+  assert_token("1e-00", FloatValue("1e-00", 0, 5));
+  assert_token("1e+0", FloatValue("1e+0", 0, 4));
+  assert_token("1e+00", FloatValue("1e+00", 0, 5));
+}
+
+#[test]
+fn lexes_bad_number() {
+  assert_error("00", Error::InvalidInt);
+  assert_error("+1", Error::UnxepectedChar);
+  assert_error(".123", Error::UnxepectedChar);
+  assert_error("1.", Error::InvalidFloat);
+  assert_error("1.A", Error::InvalidFloat);
+  assert_error("-A", Error::InvalidInt);
+  assert_error("1.0e", Error::InvalidFloat);
+  assert_error("1.0eA", Error::InvalidFloat);
+}
+
+#[test]
+fn lexes_punctuation() {
+  assert_token("!", Punctuator(Bang, 0, 1));
+  assert_token("$", Punctuator(Dollar, 0, 1));
+  assert_token("(", Punctuator(LeftParen, 0, 1));
+  assert_token(")", Punctuator(RightParen, 0, 1));
+  assert_token(":", Punctuator(Colon, 0, 1));
+  assert_token("=", Punctuator(Equals, 0, 1));
+  assert_token("@", Punctuator(At, 0, 1));
+  assert_token("[", Punctuator(LeftBracket, 0, 1));
+  assert_token("]", Punctuator(RightBracket, 0, 1));
+  assert_token("{", Punctuator(LeftBrace, 0, 1));
+  assert_token("}", Punctuator(RightBrace, 0, 1));
+  assert_token("|", Punctuator(Pipe, 0, 1));
+  assert_token("...", Punctuator(Spread, 0, 3));
+}
+
+#[test]
+fn lexes_unexpected_chars() {
+  assert_error(".", Error::UnxepectedChar);
+  assert_error(".", Error::UnxepectedChar);
+  assert_error("?", Error::UnxepectedChar);
+  assert_error("\u{203B}", Error::UnxepectedChar);
+  assert_error("\u{203b}", Error::UnxepectedChar);
+  assert_error("ф", Error::UnxepectedChar);
 }
