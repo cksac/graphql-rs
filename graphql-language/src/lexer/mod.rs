@@ -109,6 +109,7 @@ fn scan_spread<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
   if take!(lexer, '.') && take!(lexer, '.') && take!(lexer, '.') {
     Ok(Token::Punctuator(Punctuator::Spread, lexer.lo, lexer.hi))
   } else {
+    lexer.iter.next();
     Err(Error::UnxepectedChar)
   }
 }
@@ -132,11 +133,13 @@ fn scan_number<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
     }
   }
   if !peek!(lexer, '.' | 'E' | 'e') {
+    lexer.iter.next();
     return Err(Error::InvalidInt);
   }
   // Fractional part
   if take!(lexer, '.') {
     if !take_while!(lexer, '0'...'9') {
+      lexer.iter.next();
       return Err(Error::InvalidFloat);
     }
   }
@@ -144,12 +147,14 @@ fn scan_number<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
   if take!(lexer, 'E' | 'e') {
     take!(lexer, '+' | '-');
     if !take_while!(lexer, '0'...'9') {
+      lexer.iter.next();
       return Err(Error::InvalidFloat);
     }
   }
   if follow_by!(lexer, ' ' | '\t' | '\r' | '\n' | ',') || lexer.iter.peek().is_none() {
     return Ok(Token::FloatValue(&lexer.input[lexer.lo..lexer.hi], lexer.lo, lexer.hi));
   }
+  lexer.iter.next();
   Err(Error::InvalidFloat)
 }
 
@@ -160,17 +165,21 @@ fn scan_string<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
   loop {
     if take!(lexer, '\\') {
       if !take!(lexer, '\\' | '"' | 'b' | 'f' | 'n' | 'r' | 't' | '/' | 'u') {
+        lexer.iter.next();
         return Err(Error::BadEscape);
       }
     }
     if !take_while_not!(lexer, '"' | '\\' | '\r' | '\n' | '\x00'...'\x1f') {
       if peek!(lexer, '\x00'...'\x1f') {
+        lexer.iter.next();
         return Err(Error::UnxepectedChar)
       } else if !peek!(lexer, '"' | '\\') {
+        lexer.iter.next();
         return Err(Error::UnterminatedString);
       }
     }
     if peek!(lexer, '\r' | '\n') {
+      lexer.iter.next();
       return Err(Error::UnterminatedString);
     }
     if peek!(lexer, '"') {

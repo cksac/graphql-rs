@@ -70,8 +70,7 @@ fn lexes_bad_names() {
   let mut lexer = Lexer::new("a-b");
   lexer.next_is_token(Name("a", 0, 1));
   lexer.next_is_error(Error::InvalidInt);
-  // TODO: fix error cases to advance lexer.iter
-  // lexer.next_is_token(Eof);
+  lexer.next_is_token(Eof);
 }
 
 #[test]
