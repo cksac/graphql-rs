@@ -70,8 +70,8 @@ fn lexes_bad_names() {
   let mut lexer = Lexer::new("a-b");
   lexer.next_is_token(Name("a", 0, 1));
   lexer.next_is_error(Error::InvalidInt);
-  //TODO: fix error cases to advance lexer.iter
-  //lexer.next_is_token(Eof);
+  // TODO: fix error cases to advance lexer.iter
+  // lexer.next_is_token(Eof);
 }
 
 #[test]
@@ -89,15 +89,20 @@ fn lexes_string() {
   assert_token("\"unicode фы世界\"",
                StringValue("unicode фы世界".into(), 1, 19));
   assert_token("\"фы世界\"", StringValue("фы世界".into(), 1, 11));
+  assert_token("\"contains escaped \\u0007 control char\"",
+               StringValue("contains escaped \u{0007} control char".into(), 1, 37));
+  assert_token("\"escaped null-byte is not \\u0000 end of file\"",
+               StringValue("escaped null-byte is not \u{0} end of file".into(), 1, 44));
 }
 
 #[test]
 fn lexes_bad_string() {
   assert_error("\"", Error::UnterminatedString);
   assert_error("\"no end quote", Error::UnterminatedString);
-  //TODO: fix scan_string
-  //assert_error("\"contains unescaped \u{0007} control char\"", Error::UnxepectedChar);
-  //assert_error("\"null-byte is not \u{0000} end of file\"", Error::UnxepectedChar);
+  assert_error("\"contains unescaped \u{0007} control char\"",
+               Error::UnxepectedChar);
+  assert_error("\"unescaped null-byte is not \u{0000} end of file\"",
+               Error::UnxepectedChar);
   assert_error("\"multi\nline\"", Error::UnterminatedString);
   assert_error("\"multi\rline\"", Error::UnterminatedString);
   assert_error("\"bad \\u123", Error::UnterminatedString);

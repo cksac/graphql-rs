@@ -163,8 +163,12 @@ fn scan_string<'a>(lexer: &mut Lexer<'a>) -> Result<Token<'a>> {
         return Err(Error::BadEscape);
       }
     }
-    if !take_while_not!(lexer, '"' | '\\' | '\r' | '\n') && !peek!(lexer, '"' | '\\') {
-      return Err(Error::UnterminatedString);
+    if !take_while_not!(lexer, '"' | '\\' | '\r' | '\n' | '\x00'...'\x1f') {
+      if peek!(lexer, '\x00'...'\x1f') {
+        return Err(Error::UnxepectedChar)
+      } else if !peek!(lexer, '"' | '\\') {
+        return Err(Error::UnterminatedString);
+      }
     }
     if peek!(lexer, '\r' | '\n') {
       return Err(Error::UnterminatedString);
